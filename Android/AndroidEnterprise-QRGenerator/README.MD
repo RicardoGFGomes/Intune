@@ -50,8 +50,8 @@ This section will guide you through the initial setup and usage of the Android E
 
 The easiest way to run the tool is by double-clicking the included batch file:
 
-1. Download the `AndroidEnterprise-QR-Generator.ps1` and `Run-QRGenerator.bat` to a folder on your computer
-2. Navigate to that location and double-click **`Run-QRGenerator.bat`**
+1. Download the `AndroidEnterprise-QR-Generator` folder's content and navigate to that location on your computer
+2. Double-click **`Run-QRGenerator.bat`**
 3. The application will launch automatically
 
 ### Option 2: Using PowerShell Directly
@@ -65,11 +65,10 @@ If you prefer to run the script manually via PowerShell:
    ```
 3. Run the script with the execution policy bypass:
    ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
-   .\Run-AndroidEnterpriseQRGenerator.ps1
+   powershell.exe -ExecutionPolicy Bypass -File ".\AndroidEnterprise-QR-Generator.ps1"
    ```
 
-> **Note:** The `-ExecutionPolicy Bypass` and `-Scope Process` parameters were included to temporarily allow the script to run without modifying your system's execution policy. This setting only applies to the current PowerShell session.
+> **Note:** The `-ExecutionPolicy Bypass` parameter temporarily allows the script to run without modifying your system's execution policy. This setting only applies to the current PowerShell session.
 
 ---
 
