@@ -27,9 +27,11 @@ The **Android Enterprise QR Code Generator** is a PowerShell-based tool with a g
 
 When testing Android Enterprise enrollment profiles, IT administrators often need to repeatedly factory reset devices and re-enroll them. Manually entering Wi-Fi credentials and navigating through setup wizards can be time-consuming. This tool eliminates that friction by:
 
-1. Pre-configuring network connectivity in the QR code
-2. Embedding enrollment tokens for seamless MDM enrollment
-3. Providing options to skip encryption and enable system apps for faster testing cycles
+1. Field to enter the Enrollment Token, which you can copy from your Android Enrollment profile in Intune.
+2. Allows embedding Wi-Fi network information into the QR code
+3. Provides options to skip encryption and enable system apps
+4. Generates the QR code locally and allows saving it for later use
+5. Includes a debug option for analyzing the JSON data
 
 ### Prerequisites
 
