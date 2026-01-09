@@ -2,6 +2,7 @@
 autoinstall:
   version: 1
   shutdown: poweroff
+  updates: all
   source:
     id: ubuntu-desktop-minimal
   user-data:
