@@ -34,7 +34,9 @@ When testing Android Enterprise enrollment profiles, IT administrators often nee
 ### Prerequisites
 
 - **PowerShell 5.1** or later
-- **QRCodeGenerator** PowerShell module (the script will attempt to install it automatically if missing)
+- **QRCodeGenerator** PowerShell module to generate the QR Code locally (the script will attempt to install it automatically if missing)
+
+> **Note:** If the installation fails, please install the required module manually using the following command in Powershell:
 
 ```powershell
 Install-Module -Name QRCodeGenerator -Scope CurrentUser
