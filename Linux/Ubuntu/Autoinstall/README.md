@@ -1,6 +1,6 @@
   ## 🎯 Overview
 
-  buntu Autoinstall is a feature that allows for automatic, unattended installation of Ubuntu operating systems. This process is supported in Ubuntu Server versions 20.04 and later, as well as Ubuntu Desktop versions 23.04 and later1. The autoinstall format uses YAML configuration files to predefine installation settings, enabling the installation to proceed without user interaction. This '**autoinstall.yaml**' file was created to provide a quick an easy way to deploy a Linux machine with Ubuntu 24.04 LTS or later and test Intune's Linux Management capabilities.
+  Ubuntu Autoinstall is a feature that allows for automatic, unattended installation of Ubuntu operating systems. This process is supported in Ubuntu Server versions 20.04 and later, as well as Ubuntu Desktop versions 23.04 and later1. The autoinstall format uses YAML configuration files to predefine installation settings, enabling the installation to proceed without user interaction. This '**autoinstall.yaml**' file was created to provide a quick an easy way to deploy a Linux machine with Ubuntu 24.04 LTS or later and test Intune's Linux Management capabilities.
   
   ## 🚀 Getting Started
    
