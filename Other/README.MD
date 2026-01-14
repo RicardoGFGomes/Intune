@@ -10,7 +10,7 @@ This folder contains **loose PowerShell scripts** used for specific tasks to be 
 
 | Script | Description |
 |--------|-------------|
-| [Convert-CertificatetoCSP.ps1](Convert-CertificatetoCSP.ps1) | A GUI-based tool that converts certificate files (.cer, .crt, .der) into CSP format for Intune deployment. It generates the OMA-URI path, Base64 encoding, and can directly create or update custom configuration policies in Intune via Microsoft Graph API. |
+| [Convert-CertificatetoCSP.ps1](Convert-CertificatetoCSP.ps1) | A GUI-based utility that streamlines the creation of custom Intune policies in CSP format for certificate deployment. It extracts the details from a local certificate files (.cer, .crt, .der) and generates the required OMA-URI path and Base64 encoding, enabling you to either build policies manually using this information or deploying them directly to Intune using the Microsoft Graph API.|
 
 ---
 
