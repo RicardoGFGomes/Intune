@@ -1,4 +1,37 @@
-# Certificate to CSP Tool with GUI and Intune Integration
+<#
+.SYNOPSIS
+    Certificate to CSP Tool with GUI and Intune Integration
+
+.DESCRIPTION
+    This tool converts certificate files (.cer, .crt, .der) to CSP format for Intune deployment.
+    It can create new custom configuration policies or add certificates to existing policies
+    via Microsoft Graph API.
+
+.NOTES
+    Author: Ricardo Gomes
+    Version: 1.0
+    Last Updated: January 2026
+
+.REQUIRED GRAPH API PERMISSIONS
+    The following Microsoft Graph API permissions are required for Intune integration:
+    
+    Permission                                      | Type        | Description
+    ------------------------------------------------|-------------|---------------------------------------------
+    DeviceManagementConfiguration.ReadWrite.All    | Delegated   | Read and write device configurations
+    DeviceManagementServiceConfig.ReadWrite.All    | Delegated   | Read and write Intune service configuration
+    Directory.Read.All                             | Delegated   | Read directory data (for policy assignments)
+    
+    Note: These permissions require admin consent in Azure AD.
+    The user must have Intune Administrator or Global Administrator role.
+
+.TROUBLESHOOTING 403 ERRORS
+    If you encounter 403 (Forbidden) errors:
+    1. Ensure the above API permissions have been granted admin consent in Azure AD
+    2. Verify your account has Intune Administrator or Global Administrator role
+    3. Try disconnecting and reconnecting to force a fresh token
+    4. Check for Conditional Access policies that may be blocking access
+#>
+
 param (
     [string]$CertificatePath,
     [string]$Scope,
@@ -733,15 +766,46 @@ function Connect-ToGraphAPI {
             }
         }
         
+        # Disconnect any existing session to force fresh authentication
+        # This helps avoid 403 errors from stale/cached tokens
+        try {
+            $existingContext = Get-MgContext -ErrorAction SilentlyContinue
+            if ($existingContext) {
+                Update-StatusLabel "Clearing existing session..."
+                Disconnect-MgGraph -ErrorAction SilentlyContinue
+                Start-Sleep -Milliseconds 500
+            }
+        } catch {
+            # Ignore disconnect errors
+        }
+        
         Update-StatusLabel "Authenticating with Microsoft Graph..."
         
-        # Connect to Graph with Device Management permissions
-        Connect-MgGraph -Scopes "DeviceManagementConfiguration.ReadWrite.All" -NoWelcome -ErrorAction Stop
+        # Define comprehensive scopes for Intune device configuration operations
+        # These scopes ensure proper permissions for:
+        # - Reading and writing device configurations (DeviceManagementConfiguration.ReadWrite.All)
+        # - Managing device management services (DeviceManagementServiceConfig.ReadWrite.All)
+        # - Reading directory information for policy assignments (Directory.Read.All)
+        $graphScopes = @(
+            "DeviceManagementConfiguration.ReadWrite.All",
+            "DeviceManagementServiceConfig.ReadWrite.All",
+            "Directory.Read.All"
+        )
+        
+        # Connect to Graph with comprehensive Device Management permissions
+        # Using -ForceRefresh to ensure a fresh token is obtained (helps with 403 errors)
+        Connect-MgGraph -Scopes $graphScopes -NoWelcome -ErrorAction Stop
         
         # Check if connection was successful
         $context = Get-MgContext
         if ($context) {
             $global:accessToken = $true  # Simplified token tracking
+            
+            # Log the granted scopes for debugging
+            Write-Host "Connected to Graph API successfully"
+            Write-Host "Account: $($context.Account)"
+            Write-Host "Tenant ID: $($context.TenantId)"
+            Write-Host "Scopes granted: $($context.Scopes -join ', ')"
             
             $connectionStatusLabel.Content = "Connected"
             $connectionStatusLabel.Foreground = "Green"
@@ -763,7 +827,19 @@ function Connect-ToGraphAPI {
     catch {
         $connectionStatusLabel.Content = "Connection failed"
         $connectionStatusLabel.Foreground = "Red"
-        Update-StatusLabel "Graph API connection failed: $($_.Exception.Message)"
+        
+        # Enhanced error message for 403 errors
+        $errorMessage = $_.Exception.Message
+        if ($errorMessage -match "403" -or $errorMessage -match "Forbidden") {
+            $errorMessage = "Access denied (403). Ensure you have Intune Administrator or Global Administrator role. Try signing out of Azure and re-authenticating."
+            Write-Host "403 Error detected. Possible causes:"
+            Write-Host "  1. Insufficient permissions - need Intune Administrator or higher"
+            Write-Host "  2. Cached token with old permissions - disconnect and reconnect"
+            Write-Host "  3. Conditional Access policies blocking access"
+            Write-Host "  4. API permissions not granted admin consent in Azure AD"
+        }
+        
+        Update-StatusLabel "Graph API connection failed: $errorMessage"
         $connectToGraphButton.Content = "Connect"
         $connectToGraphButton.IsEnabled = $true
         return $false
@@ -792,8 +868,8 @@ function Get-ExistingPolicies {
         
         Update-StatusLabel "Retrieving existing policies..."
         
-        # Get all device configurations without filter to avoid BadRequest
-        $policies = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations" -ErrorAction Stop
+        # Get all device configurations using retry-enabled request
+        $policies = Invoke-GraphRequestWithRetry -Method GET -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations"
         
         $existingPoliciesComboBox.Items.Clear()
         if ($policies.value -and $policies.value.Count -gt 0) {
@@ -855,6 +931,71 @@ $existingPoliciesComboBox.Add_SelectionChanged({
     }
 })
 
+# Helper function to invoke Graph API with retry logic for 403 errors
+function Invoke-GraphRequestWithRetry {
+    param(
+        [string]$Method,
+        [string]$Uri,
+        [string]$Body = $null,
+        [int]$MaxRetries = 2
+    )
+    
+    $retryCount = 0
+    $lastError = $null
+    
+    while ($retryCount -le $MaxRetries) {
+        try {
+            if ($Body) {
+                $response = Invoke-MgGraphRequest -Method $Method -Uri $Uri -Body $Body -ErrorAction Stop
+            } else {
+                $response = Invoke-MgGraphRequest -Method $Method -Uri $Uri -ErrorAction Stop
+            }
+            return $response
+        }
+        catch {
+            $lastError = $_
+            $errorMessage = $_.Exception.Message
+            
+            # Check if it's a 403 error
+            if ($errorMessage -match "403" -or $errorMessage -match "Forbidden") {
+                $retryCount++
+                
+                if ($retryCount -le $MaxRetries) {
+                    Write-Host "403 error encountered. Attempting token refresh (retry $retryCount of $MaxRetries)..."
+                    Update-StatusLabel "Access denied - refreshing token (attempt $retryCount)..."
+                    
+                    # Force disconnect and reconnect to get a fresh token
+                    try {
+                        Disconnect-MgGraph -ErrorAction SilentlyContinue
+                        Start-Sleep -Milliseconds 500
+                        
+                        # Reconnect with the same scopes
+                        $graphScopes = @(
+                            "DeviceManagementConfiguration.ReadWrite.All",
+                            "DeviceManagementServiceConfig.ReadWrite.All",
+                            "Directory.Read.All"
+                        )
+                        Connect-MgGraph -Scopes $graphScopes -NoWelcome -ErrorAction Stop
+                        
+                        Write-Host "Token refreshed successfully. Retrying request..."
+                        Start-Sleep -Milliseconds 500
+                    }
+                    catch {
+                        Write-Host "Failed to refresh token: $($_.Exception.Message)"
+                        throw $lastError
+                    }
+                }
+            } else {
+                # Not a 403 error, throw immediately
+                throw
+            }
+        }
+    }
+    
+    # If we exhausted all retries, throw the last error
+    throw $lastError
+}
+
 # Function to create OMA-URI configuration
 function New-IntuneCustomConfiguration {
     param(
@@ -887,13 +1028,27 @@ function New-IntuneCustomConfiguration {
         
         $jsonBody = $deviceConfiguration | ConvertTo-Json -Depth 10
         
-        $response = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations" -Body $jsonBody
+        # Use retry-enabled Graph request
+        $response = Invoke-GraphRequestWithRetry -Method POST -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations" -Body $jsonBody
         
         Update-StatusLabel "Successfully created Intune configuration policy: $PolicyName"
         return $response
     }
     catch {
-        Update-StatusLabel "Failed to create Intune configuration: $($_.Exception.Message)"
+        $errorMessage = $_.Exception.Message
+        
+        # Provide helpful error message for 403 errors
+        if ($errorMessage -match "403" -or $errorMessage -match "Forbidden") {
+            $errorMessage = "Access denied after retry. Please ensure: 1) You have Intune Administrator role, 2) API permissions have admin consent in Azure AD."
+            [System.Windows.MessageBox]::Show(
+                "403 Forbidden Error`n`nPossible causes:`n- Insufficient permissions (need Intune Administrator)`n- API permissions not granted admin consent`n- Conditional Access policies blocking access`n`nTry disconnecting and reconnecting to Graph API.",
+                "Access Denied",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Warning
+            )
+        }
+        
+        Update-StatusLabel "Failed to create Intune configuration: $errorMessage"
         return $null
     }
 }
@@ -912,8 +1067,8 @@ function Add-ToExistingConfiguration {
         Update-StatusLabel "Adding to existing configuration..."
         Write-Host "Starting to add configuration to policy: $($ExistingPolicy.displayName)"
         
-        # Get current policy details
-        $currentPolicy = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($ExistingPolicy.id)"
+        # Get current policy details using retry-enabled request
+        $currentPolicy = Invoke-GraphRequestWithRetry -Method GET -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($ExistingPolicy.id)"
         Write-Host "Retrieved current policy. Existing OMA settings count: $($currentPolicy.omaSettings.Count)"
         
         # Check for duplicate OMA URIs
@@ -987,9 +1142,9 @@ function Add-ToExistingConfiguration {
             return $null
         }
         
-        # Use PATCH with @odata.type included
+        # Use PATCH with @odata.type included and retry logic
         Write-Host "Attempting PATCH with @odata.type..."
-        $response = Invoke-MgGraphRequest -Method PATCH -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($ExistingPolicy.id)" -Body $jsonBody
+        $response = Invoke-GraphRequestWithRetry -Method PATCH -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($ExistingPolicy.id)" -Body $jsonBody
         
         Update-StatusLabel "Successfully added configuration to existing policy: $($ExistingPolicy.displayName)"
         Write-Host "Successfully updated policy using PATCH method"
