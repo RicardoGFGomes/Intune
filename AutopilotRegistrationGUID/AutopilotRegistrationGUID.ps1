@@ -538,36 +538,72 @@ try {
 </Window>
 "@
     
-    $splashReader = [System.Xml.XmlNodeReader]::new([xml]$splashXaml)
-    $splashWindow = [System.Windows.Markup.XamlReader]::Load($splashReader)
-    $statusText = $splashWindow.FindName("StatusText")
-    
-    $splashWindow.Show()
-    [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
-    
-    # Initialize Graph modules
-    $statusText.Text = "Installing Microsoft Graph modules..."
-    [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
-    
-    if (-not (Initialize-GraphModules)) {
-        [System.Windows.Forms.MessageBox]::Show("Failed to initialize Graph API modules. Script will exit.", "Initialization Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        $splashWindow.Close()
-        exit
-    }
-    
-    # Pre-install Get-WindowsAutopilotinfo script
-    $statusText.Text = "Installing Get-WindowsAutopilotinfo script..."
-    [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
-    
     try {
-        Install-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
+        $splashReader = [System.Xml.XmlNodeReader]::new([xml]$splashXaml)
+        $splashWindow = [System.Windows.Markup.XamlReader]::Load($splashReader)
+        
+        if ($splashWindow -eq $null) {
+            throw "Splash window failed to load"
+        }
+        
+        $statusText = $splashWindow.FindName("StatusText")
+        
+        if ($statusText -eq $null) {
+            throw "StatusText element not found in splash window"
+        }
+        
+        $splashWindow.Show()
+        
+        try {
+            [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+        }
+        catch {
+            # Dispatcher may not be available, continue without it
+        }
+        
+        # Initialize Graph modules
+        if ($statusText -ne $null) {
+            $statusText.Text = "Installing Microsoft Graph modules..."
+            try {
+                [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+            }
+            catch {
+                # Dispatcher may not be available, continue without it
+            }
+        }
+        
+        if (-not (Initialize-GraphModules)) {
+            [System.Windows.Forms.MessageBox]::Show("Failed to initialize Graph API modules. Script will exit.", "Initialization Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            if ($splashWindow) { $splashWindow.Close() }
+            exit
+        }
+        
+        # Pre-install Get-WindowsAutopilotinfo script
+        if ($statusText -ne $null) {
+            $statusText.Text = "Installing Get-WindowsAutopilotinfo script..."
+            try {
+                [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+            }
+            catch {
+                # Dispatcher may not be available, continue without it
+            }
+        }
+        
+        try {
+            Install-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Verbose "Get-WindowsAutopilotinfo installation skipped: $_"
+        }
+        
+        # Close splash window
+        if ($splashWindow) { $splashWindow.Close() }
     }
     catch {
-        Write-Verbose "Get-WindowsAutopilotinfo installation skipped: $_"
+        Write-Error "Error during initialization: $_"
+        if ($splashWindow) { $splashWindow.Close() }
+        exit
     }
-    
-    # Close splash window
-    $splashWindow.Close()
     
     # Create WPF window
     $xaml = New-WPFWindow
