@@ -674,9 +674,9 @@ try {
         $RegisterDeviceButton.Content = "Installing Script..."
         
         try {
-            # Install the official Get-WindowsAutoPilotInfo script from PowerShell Gallery
+            # Install the official Get-WindowsAutopilotinfo script from PowerShell Gallery
             Write-Host "Installing Get-WindowsAutopilotinfo from PowerShell Gallery..." -ForegroundColor Cyan
-            Install-Script -Name Get-WindowsAutopilotinfo -Force -SkipPublisherCheck -ErrorAction Stop
+            Install-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
             
             # Build command parameters
             $params = "-Online -GroupTag '$($script:selectedGroupTag)'"
