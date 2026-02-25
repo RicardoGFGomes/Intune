@@ -671,18 +671,12 @@ try {
         }
         
         $RegisterDeviceButton.IsEnabled = $false
-        $RegisterDeviceButton.Content = "Registering..."
+        $RegisterDeviceButton.Content = "Installing Script..."
         
         try {
-            # Build the command based on checkbox states
-            $scriptPath = Join-Path (Split-Path $PSCommandPath -Parent) "Get-WindowsAutoPilotInfo.ps1"
-            
-            if (-not (Test-Path $scriptPath)) {
-                [System.Windows.Forms.MessageBox]::Show("Get-WindowsAutoPilotInfo.ps1 not found in the same directory.", "Script Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                $RegisterDeviceButton.IsEnabled = $true
-                $RegisterDeviceButton.Content = "Register Device"
-                return
-            }
+            # Install the official Get-WindowsAutoPilotInfo script from PowerShell Gallery
+            Write-Host "Installing Get-WindowsAutopilotinfo from PowerShell Gallery..." -ForegroundColor Cyan
+            Install-Script -Name Get-WindowsAutopilotinfo -Force -SkipPublisherCheck -ErrorAction Stop
             
             # Build command parameters
             $params = "-Online -GroupTag '$($script:selectedGroupTag)'"
@@ -695,12 +689,11 @@ try {
                 $params += " -Reboot"
             }
             
-            # Execute the script
-            $scriptBlock = "& '$scriptPath' $params"
-            Write-Host "Executing: PowerShell.exe -NoExit -Command $scriptBlock" -ForegroundColor Gray
+            # Execute the script with parameters in a new elevated PowerShell window
+            $scriptCommand = "Get-WindowsAutopilotinfo $params"
+            Write-Host "Executing: PowerShell.exe -NoExit -Command $scriptCommand" -ForegroundColor Gray
             
-            # Start the script in a new elevated PowerShell window
-            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoExit -Command `"& '$scriptPath' $params`"" -Verb RunAs
+            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoExit -Command `"$scriptCommand`"" -Verb RunAs
             
             [System.Windows.Forms.MessageBox]::Show("Device registration script has been launched in a new PowerShell window for this device.", "Registration Started", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         }
@@ -715,7 +708,7 @@ try {
     
     # Cleanup button
     $CleanupButton.Add_Click({
-        $result = [System.Windows.Forms.MessageBox]::Show("This will remove:`n- Microsoft.Graph.Authentication module`n- Microsoft.Graph.DeviceManagement module`n- Get-WindowsAutoPilotInfo.ps1 script`n- Any cached tokens`n`nContinue?", "Confirm Cleanup", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        $result = [System.Windows.Forms.MessageBox]::Show("This will remove:`n- Microsoft.Graph.Authentication module`n- Microsoft.Graph.DeviceManagement module`n- Get-WindowsAutopilotinfo script`n- Any cached tokens`n`nContinue?", "Confirm Cleanup", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
         
         if ($result -ne [System.Windows.Forms.DialogResult]::Yes) {
             return
@@ -749,6 +742,18 @@ try {
                 }
             }
             
+            # Uninstall Get-WindowsAutopilotinfo script
+            try {
+                if (Get-InstalledScript -Name Get-WindowsAutopilotinfo -ErrorAction SilentlyContinue) {
+                    Write-Host "Uninstalling Get-WindowsAutopilotinfo script..." -ForegroundColor Yellow
+                    Uninstall-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
+                    Write-Host "Successfully uninstalled Get-WindowsAutopilotinfo script" -ForegroundColor Green
+                }
+            }
+            catch {
+                Write-Host "Warning: Could not uninstall Get-WindowsAutopilotinfo script : $_" -ForegroundColor Yellow
+            }
+            
             # Remove cached tokens
             try {
                 $tokenPath = "$env:LOCALAPPDATA\Microsoft\Powershell\Powershell*.json"
@@ -756,18 +761,6 @@ try {
                 Write-Host "Cleared cached authentication tokens" -ForegroundColor Green
             }
             catch { }
-            
-            # Remove Get-WindowsAutoPilotInfo.ps1 script
-            try {
-                $scriptPath = Join-Path (Split-Path $PSCommandPath -Parent) "Get-WindowsAutoPilotInfo.ps1"
-                if (Test-Path $scriptPath) {
-                    Remove-Item -Path $scriptPath -Force
-                    Write-Host "Removed Get-WindowsAutoPilotInfo.ps1 script" -ForegroundColor Green
-                }
-            }
-            catch {
-                Write-Host "Warning: Could not remove Get-WindowsAutoPilotInfo.ps1 : $_" -ForegroundColor Yellow
-            }
             
             # Update status
             $global:graphConnected = $false

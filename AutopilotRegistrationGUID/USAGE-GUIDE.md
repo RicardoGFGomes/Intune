@@ -1,7 +1,7 @@
 # Windows Autopilot Registration Tool - Usage Guide
 
 ## Overview
-This updated tool provides a complete Windows Autopilot registration solution with a user-friendly WPF interface for managing device registration and profile assignment.
+This updated tool provides a complete Windows Autopilot registration solution with a user-friendly WPF interface for managing device registration and profile assignment. It uses the official Microsoft **Get-WindowsAutopilotinfo** script from PowerShell Gallery.
 
 ## New Features
 
@@ -9,7 +9,8 @@ This updated tool provides a complete Windows Autopilot registration solution wi
 The **"Register Device"** button automates the hardware hash collection and Autopilot registration process.
 
 **What it does:**
-- Launches the official Microsoft Get-WindowsAutoPilotInfo.ps1 script
+- Installs the official Microsoft **Get-WindowsAutopilotinfo** script from PowerShell Gallery (silently via `Install-Script`)
+- Automatically accepts the installation without prompts
 - Uploads device hardware information to Windows Autopilot
 - Uses the Group Tag (OrderID) from your selected Autopilot profile
 - Applies the `-Assign` and `-Reboot` parameters based on your checkbox selections
@@ -48,7 +49,7 @@ Removes all installed components and resets the tool.
 **What it removes:**
 - Microsoft.Graph.Authentication module
 - Microsoft.Graph.DeviceManagement module
-- Get-WindowsAutoPilotInfo.ps1 script
+- Get-WindowsAutopilotinfo script (installed from PowerShell Gallery)
 - Cached authentication tokens
 
 **When to use:**
@@ -105,9 +106,11 @@ Removes all installed components and resets the tool.
 
 ## Parameters Used
 
-The "Register Device" button uses the following command structure:
+The "Register Device" button uses the official Microsoft PowerShell Gallery script with the following command structure:
 ```powershell
-Get-WindowsAutoPilotInfo.ps1 -Online -GroupTag [OrderID] [-Assign] [-Reboot]
+Install-Script -Name Get-WindowsAutopilotinfo -Force -SkipPublisherCheck -ErrorAction SilentlyContinue
+
+Get-WindowsAutopilotinfo -Online -GroupTag [OrderID] [-Assign] [-Reboot]
 ```
 
 Where:
@@ -115,12 +118,15 @@ Where:
 - `-GroupTag` - Set to your profile's OrderID
 - `-Assign` - Added if "Wait for registration" is checked
 - `-Reboot` - Added if "Reboot after registration" is checked
+- `-SkipPublisherCheck` - Silently accepts the installation without prompts
+- `-Force` - Forces installation even if already installed
 
 ## Troubleshooting
 
-### "Get-WindowsAutoPilotInfo.ps1 not found"
-- Ensure Get-WindowsAutoPilotInfo.ps1 is in the same directory as AutopilotRegistrationGUID.ps1
-- If deleted, download it again from the repository
+### "Get-WindowsAutopilotinfo installation failed"
+- Ensure you have internet connectivity to PowerShell Gallery
+- The script is automatically installed when you click "Register Device" with the `-Force` and `-SkipPublisherCheck` flags
+- If installation still fails, try running manually in PowerShell: `Install-Script -Name Get-WindowsAutopilotinfo -Force -SkipPublisherCheck`
 
 ### PowerShell window opens but closes immediately
 - Check that the device has internet connectivity
@@ -139,10 +145,11 @@ Where:
 
 ## Advanced Information
 
-### What Get-WindowsAutoPilotInfo.ps1 Does:
+### What Get-WindowsAutopilotinfo Does:
+The official Microsoft script (installed via PowerShell Gallery) performs the following:
 1. Collects device hardware information (serial number, manufacturer, model)
 2. Extracts the Windows Autopilot hardware hash using WMI
-3. If `-Online` is specified: uploads to Autopilot service
+3. If `-Online` is specified: uploads to Autopilot service with the provided Group Tag
 4. If `-Assign` is specified: waits for profile assignment (max 5 minutes)
 5. If `-Reboot` is specified: automatically restarts the system
 
