@@ -513,11 +513,61 @@ try {
     Add-Type -AssemblyName PresentationCore
     Add-Type -AssemblyName WindowsBase
     
+    # Show splash screen with initialization progress
+    $splashXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Initializing..."
+        Height="200"
+        Width="400"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5"
+        WindowStyle="None"
+        AllowsTransparency="True">
+    <Grid Background="White">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <TextBlock Grid.Row="0" Text="Autopilot Registration Tool" FontSize="16" FontWeight="Bold" Foreground="#0078D4" Margin="20,20,20,0" TextAlignment="Center"/>
+        <TextBlock Grid.Row="1" x:Name="StatusText" Text="Installing dependencies..." FontSize="12" Foreground="#333333" Margin="20,15,20,0" TextAlignment="Center"/>
+        <ProgressBar Grid.Row="2" x:Name="InitProgress" Height="8" Margin="20,20,20,20" Background="#E0E0E0" Foreground="#0078D4" IsIndeterminate="True"/>
+    </Grid>
+</Window>
+"@
+    
+    $splashReader = [System.Xml.XmlNodeReader]::new([xml]$splashXaml)
+    $splashWindow = [System.Windows.Markup.XamlReader]::Load($splashReader)
+    $statusText = $splashWindow.FindName("StatusText")
+    
+    $splashWindow.Show()
+    [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+    
     # Initialize Graph modules
+    $statusText.Text = "Installing Microsoft Graph modules..."
+    [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+    
     if (-not (Initialize-GraphModules)) {
         [System.Windows.Forms.MessageBox]::Show("Failed to initialize Graph API modules. Script will exit.", "Initialization Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        $splashWindow.Close()
         exit
     }
+    
+    # Pre-install Get-WindowsAutopilotinfo script
+    $statusText.Text = "Installing Get-WindowsAutopilotinfo script..."
+    [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+    
+    try {
+        Install-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose "Get-WindowsAutopilotinfo installation skipped: $_"
+    }
+    
+    # Close splash window
+    $splashWindow.Close()
     
     # Create WPF window
     $xaml = New-WPFWindow
@@ -671,34 +721,88 @@ try {
         }
         
         $RegisterDeviceButton.IsEnabled = $false
-        $RegisterDeviceButton.Content = "Installing Script..."
+        $RegisterDeviceButton.Content = "Registering..."
+        
+        # Create progress window
+        $progressXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Device Registration"
+        Height="400"
+        Width="600"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <Border Grid.Row="0" Background="#0078D4" Padding="15">
+            <TextBlock Text="Registering Device with Windows Autopilot" FontSize="14" FontWeight="Bold" Foreground="White"/>
+        </Border>
+        
+        <TextBox Grid.Row="1" x:Name="OutputText" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" 
+                 FontFamily="Consolas" FontSize="10" Background="White" BorderBrush="#E0E0E0" Margin="10"/>
+        
+        <ProgressBar Grid.Row="2" x:Name="RegProgress" Height="8" Margin="10" Background="#E0E0E0" 
+                     Foreground="#0078D4" IsIndeterminate="True"/>
+        
+        <Button Grid.Row="3" x:Name="CloseButton" Content="Close" Width="100" Height="32" 
+                Background="#D32F2F" Foreground="White" Margin="10" HorizontalAlignment="Right" IsEnabled="False"/>
+    </Grid>
+</Window>
+"@
         
         try {
-            # Install the official Get-WindowsAutopilotinfo script from PowerShell Gallery
-            Write-Host "Installing Get-WindowsAutopilotinfo from PowerShell Gallery..." -ForegroundColor Cyan
-            Install-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
+            $progressReader = [System.Xml.XmlNodeReader]::new([xml]$progressXaml)
+            $progressWindow = [System.Windows.Markup.XamlReader]::Load($progressReader)
+            $outputText = $progressWindow.FindName("OutputText")
+            $closeButton = $progressWindow.FindName("CloseButton")
+            
+            $closeButton.Add_Click({
+                $progressWindow.Close()
+            })
+            
+            # Show progress window
+            $progressWindow.Owner = $window
+            $progressWindow.Show()
+            [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
             
             # Build command parameters
-            $params = "-Online -GroupTag '$($script:selectedGroupTag)'"
+            $params = @("-Online", "-GroupTag", $script:selectedGroupTag)
             
             if ($WaitForRegistrationCheckbox.IsChecked) {
-                $params += " -Assign"
+                $params += "-Assign"
             }
             
             if ($RebootCheckbox.IsChecked) {
-                $params += " -Reboot"
+                $params += "-Reboot"
             }
             
-            # Execute the script with parameters in a new elevated PowerShell window
-            $scriptCommand = "Get-WindowsAutopilotinfo $params"
-            Write-Host "Executing: PowerShell.exe -NoExit -Command $scriptCommand" -ForegroundColor Gray
+            # Run Get-WindowsAutopilotinfo and capture output
+            $outputText.AppendText("Starting device registration...`r`n")
+            $outputText.AppendText("Group Tag: $($script:selectedGroupTag)`r`n")
+            if ($WaitForRegistrationCheckbox.IsChecked) { $outputText.AppendText("Wait for Assignment: Yes`r`n") }
+            if ($RebootCheckbox.IsChecked) { $outputText.AppendText("Reboot After: Yes`r`n") }
+            $outputText.AppendText("`r`n")
+            [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
             
-            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoExit -Command `"$scriptCommand`"" -Verb RunAs
+            # Execute Get-WindowsAutopilotinfo
+            & Get-WindowsAutopilotinfo @params 2>&1 | ForEach-Object {
+                $outputText.AppendText("$_`r`n")
+                [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+            }
             
-            [System.Windows.Forms.MessageBox]::Show("Device registration script has been launched in a new PowerShell window for this device.", "Registration Started", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            $outputText.AppendText("`r`nDevice registration completed!`r`n")
+            $closeButton.IsEnabled = $true
+            
         }
         catch {
-            [System.Windows.Forms.MessageBox]::Show("Error: $_", "Registration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            $outputText.AppendText("Error: $_`r`n")
+            $closeButton.IsEnabled = $true
         }
         finally {
             $RegisterDeviceButton.IsEnabled = $true
