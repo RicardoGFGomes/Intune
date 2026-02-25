@@ -490,7 +490,7 @@ function New-WPFWindow {
                 </Grid.ColumnDefinitions>
                 
                 <Button Grid.Column="1" x:Name="RegisterDeviceButton" Content="Register Device" Width="140" Height="32" Background="#0078D4" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="2" x:Name="CleanupButton" Content="Cleanup" Width="100" Height="32" Background="#FF8C00" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="2" x:Name="CleanupButton" Content="Cleanup" Width="100" Height="32" Background="#FF8C00" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
                 <Button Grid.Column="3" x:Name="RefreshButton" Content="Refresh Profiles" Width="130" Height="32" Background="#107C10" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
                 <Button Grid.Column="4" x:Name="ExitButton" Content="Exit" Width="90" Height="32" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
             </Grid>
