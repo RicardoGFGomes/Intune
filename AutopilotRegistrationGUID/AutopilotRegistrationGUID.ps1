@@ -553,19 +553,16 @@ try {
         }
         
         $splashWindow.Show()
+        Start-Sleep -Milliseconds 100
         
-        try {
-            [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
-        }
-        catch {
-            # Dispatcher may not be available, continue without it
-        }
+        # Use window dispatcher for UI updates
+        $dispatcher = $splashWindow.Dispatcher
         
         # Initialize Graph modules
-        if ($statusText -ne $null) {
+        if ($statusText -ne $null -and $dispatcher -ne $null) {
             $statusText.Text = "Installing Microsoft Graph modules..."
             try {
-                [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+                $dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
             }
             catch {
                 # Dispatcher may not be available, continue without it
