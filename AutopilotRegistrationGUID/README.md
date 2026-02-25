@@ -59,6 +59,7 @@ When a profile is selected:
 
 ### Running the Script
 
+#### Local Execution
 1. Open PowerShell as Administrator
 2. Navigate to the script directory
 3. Run the script:
@@ -70,6 +71,49 @@ When a profile is selected:
    - Device information automatically populated
    - Internet status checked
    - Graph API in disconnected state
+
+#### Running Directly from OOBE (Windows 11)
+
+You can run the script directly from the Windows Out-of-Box Experience (OOBE) screen using this one-liner command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/AutopilotRegistrationGUID/AutopilotRegistrationGUID.ps1' -UseBasicParsing).Content"
+```
+
+This command:
+- Downloads the latest version directly from your GitHub repository
+- Runs with bypass execution policy for OOBE environments
+- Executes with no stored profile settings
+- Immediately launches the WPF interface for Autopilot profile selection and device registration
+
+**Usage in OOBE:**
+1. Press `Shift + F10` to open Command Prompt
+2. Type `powershell` and press Enter
+3. Paste the command above
+4. Press Enter to execute
+5. The tool will download and launch immediately
+   - Graph API in disconnected state
+
+#### Running Directly from OOBE (Windows 11)
+
+You can run the script directly from the Windows Out-of-Box Experience (OOBE) screen using this one-liner command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/AutopilotRegistrationGUID/AutopilotRegistrationGUID.ps1' -UseBasicParsing).Content"
+```
+
+This command:
+- Downloads the latest version directly from your GitHub repository
+- Runs with bypass execution policy for OOBE environments
+- Executes with no stored profile settings
+- Immediately launches the WPF interface for Autopilot profile selection and device registration
+
+**Usage in OOBE:**
+1. Press `Shift + F10` to open Command Prompt
+2. Type `powershell` and press Enter
+3. Paste the command above
+4. Press Enter to execute
+5. The tool will download and launch immediately
 
 ### Connecting to Graph API
 
