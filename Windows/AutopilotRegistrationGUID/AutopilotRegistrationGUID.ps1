@@ -579,7 +579,7 @@ try {
         if ($statusText -ne $null) {
             $statusText.Text = "Installing Get-WindowsAutopilotinfo script..."
             try {
-                [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+                $dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
             }
             catch {
                 # Dispatcher may not be available, continue without it
@@ -792,8 +792,21 @@ try {
         try {
             $progressReader = [System.Xml.XmlNodeReader]::new([xml]$progressXaml)
             $progressWindow = [System.Windows.Markup.XamlReader]::Load($progressReader)
+            
+            if ($progressWindow -eq $null) {
+                throw "Failed to create progress window"
+            }
+            
             $outputText = $progressWindow.FindName("OutputText")
             $closeButton = $progressWindow.FindName("CloseButton")
+            
+            if ($outputText -eq $null) {
+                throw "OutputText element not found in progress window"
+            }
+            
+            if ($closeButton -eq $null) {
+                throw "CloseButton element not found in progress window"
+            }
             
             $closeButton.Add_Click({
                 $progressWindow.Close()
@@ -802,7 +815,7 @@ try {
             # Show progress window
             $progressWindow.Owner = $window
             $progressWindow.Show()
-            [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+            $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
             
             # Build command parameters
             $params = @("-Online", "-GroupTag", $script:selectedGroupTag)
@@ -816,26 +829,43 @@ try {
             }
             
             # Run Get-WindowsAutopilotinfo and capture output
-            $outputText.AppendText("Starting device registration...`r`n")
-            $outputText.AppendText("Group Tag: $($script:selectedGroupTag)`r`n")
-            if ($WaitForRegistrationCheckbox.IsChecked) { $outputText.AppendText("Wait for Assignment: Yes`r`n") }
-            if ($RebootCheckbox.IsChecked) { $outputText.AppendText("Reboot After: Yes`r`n") }
-            $outputText.AppendText("`r`n")
-            [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+            if ($outputText -ne $null) {
+                $outputText.AppendText("Starting device registration...`r`n")
+                $outputText.AppendText("Group Tag: $($script:selectedGroupTag)`r`n")
+                if ($WaitForRegistrationCheckbox.IsChecked) { $outputText.AppendText("Wait for Assignment: Yes`r`n") }
+                if ($RebootCheckbox.IsChecked) { $outputText.AppendText("Reboot After: Yes`r`n") }
+                $outputText.AppendText("`r`n")
+            }
+            $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
             
             # Execute Get-WindowsAutopilotinfo
             & Get-WindowsAutopilotinfo @params 2>&1 | ForEach-Object {
-                $outputText.AppendText("$_`r`n")
-                [System.Windows.Forms.Application]::Current.Dispatcher.Invoke([System.Windows.Forms.Application]::DoEvents)
+                if ($outputText -ne $null) {
+                    $outputText.AppendText("$_`r`n")
+                }
+                try {
+                    $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+                }
+                catch {
+                    # Continue if dispatcher is not available
+                }
             }
             
-            $outputText.AppendText("`r`nDevice registration completed!`r`n")
-            $closeButton.IsEnabled = $true
+            if ($outputText -ne $null) {
+                $outputText.AppendText("`r`nDevice registration completed!`r`n")
+            }
+            if ($closeButton -ne $null) {
+                $closeButton.IsEnabled = $true
+            }
             
         }
         catch {
-            $outputText.AppendText("Error: $_`r`n")
-            $closeButton.IsEnabled = $true
+            if ($outputText -ne $null) {
+                $outputText.AppendText("Error: $_`r`n")
+            }
+            if ($closeButton -ne $null) {
+                $closeButton.IsEnabled = $true
+            }
         }
         finally {
             $RegisterDeviceButton.IsEnabled = $true
