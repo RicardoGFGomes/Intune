@@ -838,6 +838,16 @@ try {
             }
             $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
             
+            # Add PowerShell Scripts directory to PATH to ensure Get-WindowsAutopilotinfo is found
+            $originalPath = $env:PATH
+            $scriptsPath = "C:\Program Files\WindowsPowerShell\Scripts"
+            if ($env:PATH -notlike "*$scriptsPath*") {
+                $env:PATH += ";$scriptsPath"
+                if ($outputText -ne $null) {
+                    $outputText.AppendText("Added PowerShell Scripts directory to PATH`r`n")
+                }
+            }
+            
             # Execute Get-WindowsAutopilotinfo
             & Get-WindowsAutopilotinfo @params 2>&1 | ForEach-Object {
                 if ($outputText -ne $null) {
@@ -868,6 +878,10 @@ try {
             }
         }
         finally {
+            # Restore original PATH
+            if ($originalPath) {
+                $env:PATH = $originalPath
+            }
             $RegisterDeviceButton.IsEnabled = $true
             $RegisterDeviceButton.Content = "Register Device"
         }
