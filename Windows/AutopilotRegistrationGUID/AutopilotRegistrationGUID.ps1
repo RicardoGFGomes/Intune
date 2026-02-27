@@ -778,13 +778,14 @@ try {
     
     # Register Device button
     $RegisterDeviceButton.Add_Click({
-        if ([string]::IsNullOrWhiteSpace($script:selectedGroupTag)) {
-            [System.Windows.Forms.MessageBox]::Show("No Group Tag (OrderID) found. Please select a profile with a Group Tag.", "Missing Group Tag", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-            return
-        }
-        
-        $RegisterDeviceButton.IsEnabled = $false
-        $RegisterDeviceButton.Content = "Registering..."
+        try {
+            if ([string]::IsNullOrWhiteSpace($script:selectedGroupTag)) {
+                [System.Windows.Forms.MessageBox]::Show("No Group Tag (OrderID) found. Please select a profile with a Group Tag.", "Missing Group Tag", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                return
+            }
+            
+            $RegisterDeviceButton.IsEnabled = $false
+            $RegisterDeviceButton.Content = "Registering..."
         
         # Create progress window
         $progressXaml = @"
@@ -845,7 +846,14 @@ try {
             # Show progress window
             $progressWindow.Owner = $window
             $progressWindow.Show()
-            $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+            
+            try {
+                $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+            }
+            catch {
+                # Ignore dispatcher errors, continue without UI updates
+                Write-Verbose "Dispatcher invoke failed: $_"
+            }
             
             # Build command parameters using hashtable for proper splatting
             $params = @{
@@ -863,85 +871,129 @@ try {
             
             # Run Get-WindowsAutopilotinfo and capture output
             if ($outputText -ne $null) {
-                $outputText.AppendText("Starting device registration...`r`n")
-                $outputText.AppendText("Group Tag: $($script:selectedGroupTag)`r`n")
-                if ($WaitForRegistrationCheckbox.IsChecked) { $outputText.AppendText("Wait for Assignment: Yes`r`n") }
-                if ($RebootCheckbox.IsChecked) { $outputText.AppendText("Reboot After: Yes`r`n") }
-                $outputText.AppendText("`r`n")
+                try {
+                    $outputText.AppendText("Starting device registration...`r`n")
+                    $outputText.AppendText("Group Tag: $($script:selectedGroupTag)`r`n")
+                    if ($WaitForRegistrationCheckbox.IsChecked) { $outputText.AppendText("Wait for Assignment: Yes`r`n") }
+                    if ($RebootCheckbox.IsChecked) { $outputText.AppendText("Reboot After: Yes`r`n") }
+                    $outputText.AppendText("`r`n")
+                    $outputText.ScrollToEnd()
+                }
+                catch {
+                    # Ignore UI update errors
+                    Write-Verbose "UI update failed: $_"
+                }
             }
             $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
             
             # Add PowerShell Scripts directory to PATH to ensure Get-WindowsAutopilotinfo is found
             $originalPath = $env:PATH
-            $scriptsPath = "C:\Program Files\WindowsPowerShell\Scripts"
-            if ($env:PATH -notlike "*$scriptsPath*") {
-                $env:PATH += ";$scriptsPath"
-                if ($outputText -ne $null) {
-                    $outputText.AppendText("Added PowerShell Scripts directory to PATH`r`n")
-                }
-            }
-            
-            # Execute Get-WindowsAutopilotinfo with proper output capture
-            if ($outputText -ne $null) {
-                $outputText.AppendText("Executing Get-WindowsAutopilotinfo...`r`n`r`n")
-            }
-            
             try {
-                # Capture all output streams and redirect to UI only
-                $psi = New-Object System.Diagnostics.ProcessStartInfo
-                $psi.FileName = "powershell.exe"
-                $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"& { try { Get-WindowsAutopilotinfo -Online -GroupTag '$($script:selectedGroupTag)'$(if ($WaitForRegistrationCheckbox.IsChecked) { ' -Assign' })$(if ($RebootCheckbox.IsChecked) { ' -Reboot' }) } catch { Write-Output `"Error: `$_`" } }`""
-                $psi.RedirectStandardOutput = $true
-                $psi.RedirectStandardError = $true
-                $psi.UseShellExecute = $false
-                $psi.CreateNoWindow = $true
-                
-                $process = New-Object System.Diagnostics.Process
-                $process.StartInfo = $psi
-                
-                # Handle output events
-                $outputReceived = {
-                    param($sender, $e)
-                    if ($e.Data -and $outputText -ne $null) {
-                        $progressWindow.Dispatcher.BeginInvoke([System.Action]{
-                            $outputText.AppendText("$($e.Data)`r`n")
-                            $outputText.ScrollToEnd()
-                        })
+                $scriptsPath = "C:\Program Files\WindowsPowerShell\Scripts"
+                if ($env:PATH -notlike "*$scriptsPath*") {
+                    $env:PATH += ";$scriptsPath"
+                    if ($outputText -ne $null) {
+                        $outputText.AppendText("Added PowerShell Scripts directory to PATH`r`n")
+                        $outputText.ScrollToEnd()
                     }
-                }
-                
-                $errorReceived = {
-                    param($sender, $e)
-                    if ($e.Data -and $outputText -ne $null) {
-                        $progressWindow.Dispatcher.BeginInvoke([System.Action]{
-                            $outputText.AppendText("ERROR: $($e.Data)`r`n")
-                            $outputText.ScrollToEnd()
-                        })
-                    }
-                }
-                
-                $process.add_OutputDataReceived($outputReceived)
-                $process.add_ErrorDataReceived($errorReceived)
-                
-                $process.Start()
-                $process.BeginOutputReadLine()
-                $process.BeginErrorReadLine()
-                $process.WaitForExit()
-                
-                if ($outputText -ne $null) {
-                    $progressWindow.Dispatcher.BeginInvoke([System.Action]{
-                        $outputText.AppendText("`r`nProcess completed with exit code: $($process.ExitCode)`r`n")
-                    })
                 }
             }
             catch {
                 if ($outputText -ne $null) {
-                    $outputText.AppendText("Execution Error: $_`r`n")
+                    $outputText.AppendText("Warning: Could not modify PATH: $($_.Exception.Message)`r`n")
+                    $outputText.ScrollToEnd()
+                }
+            }
+            
+            # Execute Get-WindowsAutopilotinfo with simplified output capture
+            if ($outputText -ne $null) {
+                try {
+                    $outputText.AppendText("Executing Get-WindowsAutopilotinfo...`r`n`r`n")
+                    $outputText.ScrollToEnd()
+                }
+                catch {
+                    # Ignore UI update errors
+                    Write-Verbose "Pre-execution UI update failed: $_"
+                }
+            }
+            
+            try {
+                # Build command string
+                $cmdArgs = @("-Online", "-GroupTag", $script:selectedGroupTag)
+                if ($WaitForRegistrationCheckbox.IsChecked) { $cmdArgs += "-Assign" }
+                if ($RebootCheckbox.IsChecked) { $cmdArgs += "-Reboot" }
+                
+                # Execute using Start-Process with output redirection
+                $tempFile = [System.IO.Path]::GetTempFileName()
+                $cmdString = "Get-WindowsAutopilotinfo $($cmdArgs -join ' ') 2>&1"
+                
+                $processParams = @{
+                    FilePath = "powershell.exe"
+                    ArgumentList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmdString)
+                    RedirectStandardOutput = $tempFile
+                    Wait = $true
+                    WindowStyle = "Hidden"
+                    PassThru = $true
+                }
+                
+                if ($outputText -ne $null) {
+                    try {
+                        $outputText.AppendText("Running command: $cmdString`r`n`r`n")
+                        $outputText.ScrollToEnd()
+                    }
+                    catch {
+                        Write-Verbose "Command display update failed: $_"
+                    }
+                }
+                
+                $process = Start-Process @processParams
+                
+                # Read and display output
+                if (Test-Path $tempFile) {
+                    $output = Get-Content $tempFile -Raw
+                    if ($outputText -ne $null -and $output) {
+                        try {
+                            $outputText.AppendText($output)
+                            $outputText.ScrollToEnd()
+                        }
+                        catch {
+                            Write-Verbose "Output display update failed: $_"
+                        }
+                    }
+                    Remove-Item $tempFile -ErrorAction SilentlyContinue
+                }
+                
+                if ($outputText -ne $null) {
+                    try {
+                        $outputText.AppendText("`r`nProcess completed with exit code: $($process.ExitCode)`r`n")
+                        $outputText.ScrollToEnd()
+                    }
+                    catch {
+                        Write-Verbose "Process completion display failed: $_"
+                    }
+                }
+            }
+            catch {
+                if ($outputText -ne $null) {
+                    try {
+                        $outputText.AppendText("Execution Error: $($_.Exception.Message)`r`n")
+                        $outputText.ScrollToEnd()
+                    }
+                    catch {
+                        Write-Verbose "Execution error display failed: $_"
+                    }
                 }
             }
             
             if ($outputText -ne $null) {
-                $outputText.AppendText("`r`nDevice registration completed!`r`n")
+                try {
+                    $outputText.AppendText("`r`nDevice registration completed!`r`n")
+                    $outputText.ScrollToEnd()
+                }
+                catch {
+                    # Ignore final UI update errors
+                    Write-Verbose "Final UI update failed: $_"
+                }
             }
             if ($closeButton -ne $null) {
                 $closeButton.IsEnabled = $true
@@ -949,21 +1001,78 @@ try {
             
         }
         catch {
+            # Handle any errors in progress window creation or execution
+            $errorMessage = "Registration failed: $($_.Exception.Message)"
+            Write-Warning $errorMessage
+            
+            # Try to show error in progress window first, fallback to message box
             if ($outputText -ne $null) {
-                $outputText.AppendText("Error: $_`r`n")
+                try {
+                    $outputText.AppendText("`r`n$errorMessage`r`n")
+                    $outputText.ScrollToEnd()
+                }
+                catch {
+                    # If UI update fails, show message box
+                    [System.Windows.Forms.MessageBox]::Show($errorMessage, "Registration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
             }
+            else {
+                # No progress window available, show message box
+                [System.Windows.Forms.MessageBox]::Show($errorMessage, "Registration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+            
             if ($closeButton -ne $null) {
-                $closeButton.IsEnabled = $true
+                try {
+                    $closeButton.IsEnabled = $true
+                }
+                catch {
+                    # Ignore if we can't enable the close button
+                }
             }
         }
         finally {
             # Restore original PATH
-            if ($originalPath) {
-                $env:PATH = $originalPath
+            try {
+                if ($originalPath) {
+                    $env:PATH = $originalPath
+                }
             }
+            catch {
+                # Ignore PATH restoration errors
+            }
+            
+            # Restore button state
+            try {
+                $RegisterDeviceButton.IsEnabled = $true
+                $RegisterDeviceButton.Content = "Register Device"
+            }
+            catch {
+                # Ignore button state restoration errors
+            }
+        }
+    }
+    catch {
+        # Catch any errors in the entire event handler
+        $fatalError = "Fatal error in registration handler: $($_.Exception.Message)"
+        Write-Error $fatalError
+        
+        try {
+            [System.Windows.Forms.MessageBox]::Show($fatalError, "Fatal Registration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+        catch {
+            # Can't even show a message box, write to console
+            Write-Host $fatalError -ForegroundColor Red
+        }
+        
+        # Try to restore button state even in fatal error
+        try {
             $RegisterDeviceButton.IsEnabled = $true
             $RegisterDeviceButton.Content = "Register Device"
         }
+        catch {
+            # Ignore final restoration errors
+        }
+    }
     })
     
     # Cleanup button
