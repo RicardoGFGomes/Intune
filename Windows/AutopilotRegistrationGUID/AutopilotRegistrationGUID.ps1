@@ -817,15 +817,18 @@ try {
             $progressWindow.Show()
             $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
             
-            # Build command parameters
-            $params = @("-Online", "-GroupTag", $script:selectedGroupTag)
+            # Build command parameters using hashtable for proper splatting
+            $params = @{
+                Online = $true
+                GroupTag = $script:selectedGroupTag
+            }
             
             if ($WaitForRegistrationCheckbox.IsChecked) {
-                $params += "-Assign"
+                $params.Add("Assign", $true)
             }
             
             if ($RebootCheckbox.IsChecked) {
-                $params += "-Reboot"
+                $params.Add("Reboot", $true)
             }
             
             # Run Get-WindowsAutopilotinfo and capture output
