@@ -587,7 +587,13 @@ try {
         }
         
         try {
-            Install-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
+            # Only install if not already installed
+            if (-not (Get-InstalledScript -Name Get-WindowsAutopilotinfo -ErrorAction SilentlyContinue)) {
+                Install-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
+                Write-Verbose "Get-WindowsAutopilotinfo script installed successfully"
+            } else {
+                Write-Verbose "Get-WindowsAutopilotinfo script already installed"
+            }
         }
         catch {
             Write-Verbose "Get-WindowsAutopilotinfo installation skipped: $_"
@@ -597,9 +603,24 @@ try {
         if ($splashWindow) { $splashWindow.Close() }
     }
     catch {
-        Write-Error "Error during initialization: $_"
-        if ($splashWindow) { $splashWindow.Close() }
-        exit
+        $errorMsg = $_.Exception.Message
+        Write-Warning "An error occurred during initialization: $errorMsg"
+        
+        # Show error dialog but don't exit - let user try again
+        [System.Windows.Forms.MessageBox]::Show("Initialization warning: `n$errorMsg`n`nThe application will continue but some features may not work properly.", "Warning", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        
+        # Continue with basic window creation even if some initialization failed
+        try {
+            # Create WPF window
+            $xaml = New-WPFWindow
+            $xmlReader = [System.Xml.XmlNodeReader]::new([xml]$xaml)
+            $window = [System.Windows.Markup.XamlReader]::Load($xmlReader)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Fatal error: Could not create main window.`n$_", "Fatal Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            if ($splashWindow) { $splashWindow.Close() }
+            exit 1
+        }
     }
     
     # Create WPF window
@@ -607,7 +628,11 @@ try {
     $xmlReader = [System.Xml.XmlNodeReader]::new([xml]$xaml)
     $window = [System.Windows.Markup.XamlReader]::Load($xmlReader)
     
-    # Get control references
+    if ($window -eq $null) {
+        throw "Failed to create main window"
+    }
+    
+    # Get control references with safety checks
     $ComputerNameText = $window.FindName("ComputerNameText")
     $IPAddressText = $window.FindName("IPAddressText")
     $SerialNumberText = $window.FindName("SerialNumberText")
@@ -625,6 +650,11 @@ try {
     $CleanupButton = $window.FindName("CleanupButton")
     $RefreshButton = $window.FindName("RefreshButton")
     $ExitButton = $window.FindName("ExitButton")
+    
+    # Verify critical controls were found
+    if ($ComputerNameText -eq $null -or $RegisterDeviceButton -eq $null -or $ConnectGraphButton -eq $null) {
+        throw "Critical UI controls not found - XAML may be corrupted"
+    }
     
     # Populate device information
     $deviceInfo = Get-DeviceInformation
@@ -851,16 +881,62 @@ try {
                 }
             }
             
-            # Execute Get-WindowsAutopilotinfo
-            & Get-WindowsAutopilotinfo @params 2>&1 | ForEach-Object {
+            # Execute Get-WindowsAutopilotinfo with proper output capture
+            if ($outputText -ne $null) {
+                $outputText.AppendText("Executing Get-WindowsAutopilotinfo...`r`n`r`n")
+            }
+            
+            try {
+                # Capture all output streams and redirect to UI only
+                $psi = New-Object System.Diagnostics.ProcessStartInfo
+                $psi.FileName = "powershell.exe"
+                $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"& { try { Get-WindowsAutopilotinfo -Online -GroupTag '$($script:selectedGroupTag)'$(if ($WaitForRegistrationCheckbox.IsChecked) { ' -Assign' })$(if ($RebootCheckbox.IsChecked) { ' -Reboot' }) } catch { Write-Output `"Error: `$_`" } }`""
+                $psi.RedirectStandardOutput = $true
+                $psi.RedirectStandardError = $true
+                $psi.UseShellExecute = $false
+                $psi.CreateNoWindow = $true
+                
+                $process = New-Object System.Diagnostics.Process
+                $process.StartInfo = $psi
+                
+                # Handle output events
+                $outputReceived = {
+                    param($sender, $e)
+                    if ($e.Data -and $outputText -ne $null) {
+                        $progressWindow.Dispatcher.BeginInvoke([System.Action]{
+                            $outputText.AppendText("$($e.Data)`r`n")
+                            $outputText.ScrollToEnd()
+                        })
+                    }
+                }
+                
+                $errorReceived = {
+                    param($sender, $e)
+                    if ($e.Data -and $outputText -ne $null) {
+                        $progressWindow.Dispatcher.BeginInvoke([System.Action]{
+                            $outputText.AppendText("ERROR: $($e.Data)`r`n")
+                            $outputText.ScrollToEnd()
+                        })
+                    }
+                }
+                
+                $process.add_OutputDataReceived($outputReceived)
+                $process.add_ErrorDataReceived($errorReceived)
+                
+                $process.Start()
+                $process.BeginOutputReadLine()
+                $process.BeginErrorReadLine()
+                $process.WaitForExit()
+                
                 if ($outputText -ne $null) {
-                    $outputText.AppendText("$_`r`n")
+                    $progressWindow.Dispatcher.BeginInvoke([System.Action]{
+                        $outputText.AppendText("`r`nProcess completed with exit code: $($process.ExitCode)`r`n")
+                    })
                 }
-                try {
-                    $progressWindow.Dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
-                }
-                catch {
-                    # Continue if dispatcher is not available
+            }
+            catch {
+                if ($outputText -ne $null) {
+                    $outputText.AppendText("Execution Error: $_`r`n")
                 }
             }
             
