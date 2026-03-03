@@ -863,12 +863,26 @@ try {
             }
             
             $closeButton.Add_Click({
-                $progressWindow.Close()
+                try {
+                    $progressWindow.Close()
+                }
+                catch {
+                    # Ignore close errors
+                    Write-Verbose "Progress window close error: $_"
+                }
             })
             
-            # Show progress window
+            # Show progress window (non-blocking to prevent ShowDialog issues)
             $progressWindow.Owner = $window
-            $progressWindow.Show()
+            try {
+                $progressWindow.Show()
+                $progressWindow.Activate()
+            }
+            catch {
+                Write-Warning "Could not display progress window: $_"
+                [System.Windows.Forms.MessageBox]::Show("Could not display progress window: $_", "Display Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                return
+            }
             
             # Helper function to update UI safely on dispatch thread
             $updateUI = {
@@ -937,11 +951,19 @@ try {
                 $runspace.SessionStateProxy.SetVariable("WaitForAssignment", $WaitForRegistrationCheckbox.IsChecked)
                 $runspace.SessionStateProxy.SetVariable("RebootAfter", $RebootCheckbox.IsChecked)
                 
+                # Set environment variable to suppress Graph welcome messages
+                $runspace.SessionStateProxy.SetVariable("env:POWERSHELL_TELEMETRY_OPTOUT", "1")
+                $runspace.SessionStateProxy.SetVariable("env:MSAL_LOG_LEVEL", "None")
+                
                 $powershell = [powershell]::Create()
                 $powershell.Runspace = $runspace
                 
                 # Add the command with proper parameters
                 [void]$powershell.AddScript({
+                    # Suppress Graph welcome messages in this runspace
+                    $env:POWERSHELL_TELEMETRY_OPTOUT = "1"
+                    $env:MSAL_LOG_LEVEL = "None"
+                    
                     $params = @{
                         Online = $true
                         GroupTag = $GroupTag
@@ -951,6 +973,13 @@ try {
                     if ($RebootAfter) { $params.Add("Reboot", $true) }
                     
                     try {
+                        # Try to reuse existing Graph connection to avoid welcome message
+                        $context = Get-MgContext -ErrorAction SilentlyContinue
+                        if (-not $context) {
+                            # If no context exists, connect with NoWelcome
+                            Connect-MgGraph -Scopes "DeviceManagementServiceConfig.Read.All", "Directory.Read.All" -NoWelcome -ErrorAction SilentlyContinue | Out-Null
+                        }
+                        
                         Get-WindowsAutopilotinfo @params
                     }
                     catch {
@@ -1030,9 +1059,15 @@ try {
                 & $updateUI "Stack Trace: $($_.Exception.StackTrace)`r`n"
             }
             # Enable close button when done
-            $progressWindow.Dispatcher.Invoke([System.Action]{
-                $closeButton.IsEnabled = $true
-            }, [System.Windows.Threading.DispatcherPriority]::Normal)
+            try {
+                $progressWindow.Dispatcher.Invoke([System.Action]{
+                    $closeButton.IsEnabled = $true
+                }, [System.Windows.Threading.DispatcherPriority]::Normal)
+            }
+            catch {
+                # If UI update fails, just continue - window might be closed
+                Write-Verbose "Could not enable close button: $_"
+            }
             
         }
         catch {
@@ -1053,12 +1088,15 @@ try {
             
             # Enable close button even on error
             try {
-                $progressWindow.Dispatcher.Invoke([System.Action]{
-                    $closeButton.IsEnabled = $true
-                }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                if ($progressWindow -and -not $progressWindow.Dispatcher.HasShutdownStarted) {
+                    $progressWindow.Dispatcher.Invoke([System.Action]{
+                        $closeButton.IsEnabled = $true
+                    }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                }
             }
             catch {
-                # Ignore if we can't enable the close button
+                # Ignore if we can't enable the close button - window might be closed
+                Write-Verbose "Could not enable close button on error: $_"
             }
         }
         finally {
@@ -1198,11 +1236,32 @@ try {
     
     # Window closing event
     $window.Add_Closing({
-        Disconnect-FromGraphAPI | Out-Null
+        param($sender, $e)
+        try {
+            Disconnect-FromGraphAPI | Out-Null
+        }
+        catch {
+            # Ignore disconnect errors when closing
+            Write-Verbose "Disconnect error during close: $_"
+        }
     })
     
     # Show window
-    $window.ShowDialog() | Out-Null
+    try {
+        $result = $window.ShowDialog()
+    }
+    catch {
+        Write-Warning "Window ShowDialog error: $($_.Exception.Message)"
+        # Try to show with Show() instead if ShowDialog fails
+        try {
+            $window.Show()
+            # Keep the application running
+            [System.Windows.Threading.Dispatcher]::Run()
+        }
+        catch {
+            Write-Error "Could not display main window: $_"
+        }
+    }
 }
 catch {
     $errorMsg = $_.Exception.Message
