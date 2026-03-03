@@ -1,8 +1,8 @@
-# Other Scripts
+# Windows Scripts
 
 ## 🎯 Overview
 
-This folder contains **loose PowerShell scripts** used for specific tasks to be performed in Microsoft Intune. These scripts are standalone utilities that don't require a full project structure and are designed to solve individual administrative challenges.
+This folder contains **standalone PowerShell scripts** used to perform targeted administrative tasks in Microsoft Intune for Windows device management. Each script is designed to address a specific scenario and does not rely on a full project structure.
 
 ---
 
@@ -20,14 +20,14 @@ This folder contains **loose PowerShell scripts** used for specific tasks to be 
 You can execute any script directly from this repository without downloading it first. Use the following PowerShell command format:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/Other/[ScriptName].ps1' -UseBasicParsing).Content"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/Windows/[ScriptName].ps1' -UseBasicParsing).Content"
 ```
 
 ### Example:
 
 **Start-AutopilotRegistrationGUID.ps1:**
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/Other/Start-AutopilotRegistrationGUID.ps1' -UseBasicParsing).Content"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/Windows/Start-AutopilotRegistrationGUID.ps1' -UseBasicParsing).Content"
 ```
 
 ---
