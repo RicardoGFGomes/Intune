@@ -862,28 +862,40 @@ try {
                 throw "CloseButton element not found in progress window"
             }
             
-            # Store PowerShell reference for cleanup
-            $script:runningPowerShell = $null
+            # Store PowerShell reference at window level for cleanup
+            $progressWindow.Tag = @{}
             
             $closeButton.Add_Click({
                 try {
-                    # Stop any running PowerShell processes
-                    if ($script:runningPowerShell -and $script:runningPowerShell.InvocationStateInfo.State -ne [System.Management.Automation.PSInvocationState]::Completed) {
-                        $script:runningPowerShell.Stop()
+                    Write-Host "Close button clicked, attempting to stop processes..." -ForegroundColor Yellow
+                    
+                    # Stop any running PowerShell processes stored in window tag
+                    if ($progressWindow.Tag.PowerShell) {
+                        try {
+                            $progressWindow.Tag.PowerShell.Stop()
+                            Write-Host "Stopped PowerShell process" -ForegroundColor Green
+                        }
+                        catch {
+                            Write-Host "Could not stop PowerShell process: $_" -ForegroundColor Yellow
+                        }
                     }
                     
-                    # Force close the window
+                    # Force close the window immediately
+                    $progressWindow.DialogResult = $false
                     $progressWindow.Close()
+                    Write-Host "Progress window closed" -ForegroundColor Green
                 }
                 catch {
-                    # Force close if normal close fails
-                    Write-Verbose "Progress window close error: $_"
+                    Write-Host "Error in close handler: $_" -ForegroundColor Red
+                    # Nuclear option - try to dispose everything
                     try {
                         $progressWindow.Hide()
                     }
                     catch {
-                        # Final fallback - dispose
-                        try { $progressWindow.Dispose() } catch { }
+                        try {
+                            [System.Windows.Forms.Application]::Exit()
+                        }
+                        catch {}
                     }
                 }
             })
@@ -973,7 +985,9 @@ try {
                 
                 $powershell = [powershell]::Create()
                 $powershell.Runspace = $runspace
-                $script:runningPowerShell = $powershell
+                
+                # Store PowerShell reference in window tag for close button access
+                $progressWindow.Tag.PowerShell = $powershell
                 
                 # Add the command with proper parameters
                 [void]$powershell.AddScript({
@@ -1111,7 +1125,7 @@ try {
                 $powershell.Dispose()
                 $runspace.Close()
                 $runspace.Dispose()
-                $script:runningPowerShell = $null
+                $progressWindow.Tag.PowerShell = $null
                 
                 & $updateUI "`r`nDevice registration completed!`r`n"
             }
@@ -1232,40 +1246,77 @@ try {
         $CleanupButton.Content = "Cleaning..."
         
         try {
-            Write-Host "Starting cleanup process..." -ForegroundColor Yellow
+            Write-Host "Starting AGGRESSIVE cleanup process..." -ForegroundColor Yellow
             
-            # Disconnect from Graph API first
+            # Step 1: Disconnect from Graph API
             try {
                 Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
                 Write-Host "Disconnected from Microsoft Graph API" -ForegroundColor Green
             }
             catch { }
             
-            # Remove all Graph modules from memory first to avoid "in-use" errors
-            Write-Host "Forcibly removing ALL PowerShell modules from memory..." -ForegroundColor Yellow
+            # Step 2: Stop ALL PowerShell processes to release module locks
             try {
-                # Get all loaded modules and remove them
-                $allLoadedModules = Get-Module | Where-Object { $_.Name -like "Microsoft.Graph.*" -or $_.Name -eq "WindowsAutopilotIntune" }
-                foreach ($loadedModule in $allLoadedModules) {
+                Write-Host "Terminating ALL PowerShell processes (except current)..." -ForegroundColor Yellow
+                $currentPID = $PID
+                Get-Process -Name "powershell*" -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne $currentPID } | ForEach-Object {
                     try {
-                        Remove-Module -Name $loadedModule.Name -Force -ErrorAction Stop
-                        Write-Host "Forcibly removed $($loadedModule.Name) from memory" -ForegroundColor Green
+                        $_.Kill()
+                        Write-Host "Killed PowerShell process PID: $($_.Id)" -ForegroundColor Green
                     }
                     catch {
-                        Write-Host "Warning: Could not remove $($loadedModule.Name) from memory: $($_.Exception.Message)" -ForegroundColor Yellow
+                        Write-Host "Could not kill PowerShell process PID: $($_.Id)" -ForegroundColor Yellow
+                    }
+                }
+                Start-Sleep -Seconds 3
+            }
+            catch {
+                Write-Host "Warning: Error terminating PowerShell processes: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+            
+            # Step 3: Force remove ALL Graph modules from memory
+            Write-Host "FORCE removing ALL Graph-related modules from memory..." -ForegroundColor Yellow
+            try {
+                # Get ALL modules that might be Graph-related
+                $allModules = Get-Module | Where-Object { 
+                    $_.Name -like "*Graph*" -or 
+                    $_.Name -like "*Intune*" -or 
+                    $_.Name -like "*Autopilot*" -or
+                    $_.Name -eq "WindowsAutopilotIntune"
+                }
+                
+                foreach ($mod in $allModules) {
+                    try {
+                        Remove-Module -Name $mod.Name -Force -ErrorAction Stop
+                        Write-Host "FORCE removed module: $($mod.Name)" -ForegroundColor Green
+                    }
+                    catch {
+                        try {
+                            # Try even more aggressive removal
+                            [System.Reflection.Assembly]::LoadFrom($mod.Path) | Out-Null
+                            Remove-Module -Name $mod.Name -Force -ErrorAction Stop
+                            Write-Host "FORCE removed (2nd attempt): $($mod.Name)" -ForegroundColor Green
+                        }
+                        catch {
+                            Write-Host "Could not remove module: $($mod.Name) - $($_.Exception.Message)" -ForegroundColor Red
+                        }
                     }
                 }
                 
-                # Force garbage collection
-                [System.GC]::Collect()
-                [System.GC]::WaitForPendingFinalizers()
-                Start-Sleep -Seconds 2
+                # Force garbage collection multiple times
+                for ($i = 1; $i -le 3; $i++) {
+                    [System.GC]::Collect()
+                    [System.GC]::WaitForPendingFinalizers()
+                    [System.GC]::Collect()
+                    Start-Sleep -Seconds 1
+                    Write-Host "Garbage collection pass $i completed" -ForegroundColor Gray
+                }
             }
             catch {
-                Write-Host "Warning: Error during module removal: $($_.Exception.Message)" -ForegroundColor Yellow
+                Write-Host "Warning: Error during aggressive module removal: $($_.Exception.Message)" -ForegroundColor Yellow
             }
             
-            # Comprehensive list of Graph modules to uninstall (including dependencies)
+            # Step 4: AGGRESSIVE module uninstallation
             $modulesToRemove = @(
                 "Microsoft.Graph.Authentication",
                 "Microsoft.Graph.DeviceManagement", 
@@ -1277,45 +1328,62 @@ try {
                 "Microsoft.Graph.Core",
                 "Microsoft.Graph.Profile",
                 "Microsoft.Graph.Beta.DeviceManagement",
+                "Microsoft.Graph.Beta.Identity.DirectoryManagement",
+                "Microsoft.Graph.Beta.Groups",
+                "Microsoft.Graph",
                 "WindowsAutopilotIntune"
             )
+            
+            Write-Host "Starting AGGRESSIVE uninstallation of $($modulesToRemove.Count) modules..." -ForegroundColor Yellow
             
             foreach ($module in $modulesToRemove) {
                 try {
                     $installedVersions = Get-Module -ListAvailable -Name $module -ErrorAction SilentlyContinue
                     if ($installedVersions) {
-                        Write-Host "Uninstalling $module..." -ForegroundColor Yellow
+                        Write-Host "AGGRESSIVE uninstall of $module..." -ForegroundColor Yellow
                         
-                        # Force uninstall all versions with multiple methods
+                        # Method 1: Nuclear uninstall - all versions at once
                         try {
-                            # Method 1: Standard uninstall
                             Uninstall-Module -Name $module -AllVersions -Force -ErrorAction Stop
-                            Write-Host "Successfully uninstalled all versions of $module" -ForegroundColor Green
+                            Write-Host "SUCCESS: Uninstalled all versions of $module" -ForegroundColor Green
+                            continue
                         }
                         catch {
-                            # Method 2: Individual version uninstall
-                            $uninstallSuccess = $false
-                            foreach ($version in $installedVersions) {
+                            Write-Host "Method 1 failed for $module, trying individual versions..." -ForegroundColor Yellow
+                        }
+                        
+                        # Method 2: Individual version removal with retries
+                        $successCount = 0
+                        foreach ($version in $installedVersions) {
+                            for ($retry = 1; $retry -le 3; $retry++) {
                                 try {
                                     Uninstall-Module -Name $module -RequiredVersion $version.Version -Force -ErrorAction Stop
-                                    Write-Host "Successfully uninstalled $module v$($version.Version)" -ForegroundColor Green
-                                    $uninstallSuccess = $true
+                                    Write-Host "SUCCESS: Uninstalled $module v$($version.Version) (attempt $retry)" -ForegroundColor Green
+                                    $successCount++
+                                    break
                                 }
                                 catch {
-                                    Write-Host "Failed to uninstall $module v$($version.Version): $($_.Exception.Message)" -ForegroundColor Yellow
+                                    Write-Host "Attempt $retry failed for $module v$($version.Version): $($_.Exception.Message)" -ForegroundColor Yellow
+                                    if ($retry -eq 3) {
+                                        Write-Host "FAILED: Could not uninstall $module v$($version.Version) after 3 attempts" -ForegroundColor Red
+                                    }
+                                    Start-Sleep -Seconds 1
                                 }
                             }
-                            if (-not $uninstallSuccess) {
-                                Write-Host "Warning: Could not uninstall any version of $module" -ForegroundColor Yellow
-                            }
+                        }
+                        
+                        if ($successCount -eq 0) {
+                            Write-Host "FAILED: Could not uninstall any version of $module" -ForegroundColor Red
+                        } else {
+                            Write-Host "PARTIAL SUCCESS: Uninstalled $successCount/$($installedVersions.Count) versions of $module" -ForegroundColor Yellow
                         }
                     }
                     else {
-                        Write-Host "$module is not installed" -ForegroundColor Gray
+                        Write-Host "$module - not installed (OK)" -ForegroundColor Gray
                     }
                 }
                 catch {
-                    Write-Host "Warning: Error checking $module : $($_.Exception.Message)" -ForegroundColor Yellow
+                    Write-Host "CRITICAL ERROR checking $module : $($_.Exception.Message)" -ForegroundColor Red
                 }
             }
             
