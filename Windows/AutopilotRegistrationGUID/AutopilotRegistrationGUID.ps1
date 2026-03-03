@@ -980,7 +980,12 @@ try {
                             Connect-MgGraph -Scopes "DeviceManagementServiceConfig.ReadWrite.All", "Directory.Read.All" -NoWelcome -ErrorAction SilentlyContinue | Out-Null
                         }
                         
-                        Get-WindowsAutopilotinfo @params
+                        # Enable verbose output to capture progress messages
+                        $VerbosePreference = "Continue"
+                        $InformationPreference = "Continue"
+                        
+                        # Run the command with verbose output
+                        Get-WindowsAutopilotinfo @params -Verbose
                     }
                     catch {
                         Write-Error "Error running Get-WindowsAutopilotinfo: $($_.Exception.Message)"
@@ -991,9 +996,10 @@ try {
                 # Execute asynchronously and capture output
                 $asyncResult = $powershell.BeginInvoke()
                 
-                # Monitor progress
-                $timeout = 300 # 5 minutes timeout
+                # Monitor progress with real-time output capture
+                $timeout = 1800 # 30 minutes timeout
                 $start = Get-Date
+                $lastOutputCheck = Get-Date
                 
                 while (-not $asyncResult.IsCompleted) {
                     Start-Sleep -Milliseconds 1000
@@ -1005,42 +1011,86 @@ try {
                         break
                     }
                     
+                    # Check for new output every 2 seconds
+                    if (((Get-Date) - $lastOutputCheck).TotalSeconds -gt 2) {
+                        $lastOutputCheck = Get-Date
+                        
+                        # Capture any new verbose output (real-time progress)
+                        if ($powershell.Streams.Verbose.Count -gt 0) {
+                            $newVerbose = $powershell.Streams.Verbose | Where-Object { $_.Message -ne $null }
+                            foreach ($verbose in $newVerbose) {
+                                & $updateUI "$($verbose.Message)`r`n"
+                            }
+                            $powershell.Streams.Verbose.Clear()
+                        }
+                        
+                        # Capture any new information output
+                        if ($powershell.Streams.Information.Count -gt 0) {
+                            $newInfo = $powershell.Streams.Information | Where-Object { $_.MessageData -ne $null }
+                            foreach ($info in $newInfo) {
+                                & $updateUI "$($info.MessageData)`r`n"
+                            }
+                            $powershell.Streams.Information.Clear()
+                        }
+                        
+                        # Capture any new warning output
+                        if ($powershell.Streams.Warning.Count -gt 0) {
+                            $newWarnings = $powershell.Streams.Warning | Where-Object { $_.Message -ne $null }
+                            foreach ($warning in $newWarnings) {
+                                & $updateUI "WARNING: $($warning.Message)`r`n"
+                            }
+                            $powershell.Streams.Warning.Clear()
+                        }
+                        
+                        # Capture any errors immediately
+                        if ($powershell.Streams.Error.Count -gt 0) {
+                            $newErrors = $powershell.Streams.Error | Where-Object { $_.Exception -ne $null }
+                            foreach ($error in $newErrors) {
+                                & $updateUI "ERROR: $($error.Exception.Message)`r`n"
+                            }
+                            $powershell.Streams.Error.Clear()
+                        }
+                    }
+                    
                     # Update progress indicator
-                    $progressWindow.Dispatcher.Invoke([System.Action]{
-                        # Keep the progress bar animated
-                    }, [System.Windows.Threading.DispatcherPriority]::Background)
+                    try {
+                        $progressWindow.Dispatcher.Invoke([System.Action]{
+                            # Keep the progress bar animated
+                        }, [System.Windows.Threading.DispatcherPriority]::Background)
+                    }
+                    catch {
+                        # Ignore dispatcher errors
+                    }
                 }
                 
-                # Get the results
+                # Get the final results
                 if ($asyncResult.IsCompleted) {
                     $result = $powershell.EndInvoke($asyncResult)
                     
                     if ($result) {
-                        & $updateUI "Command output:`r`n"
+                        & $updateUI "`r`nFinal command output:`r`n"
                         foreach ($line in $result) {
                             & $updateUI "$line`r`n"
                         }
                     }
                     
-                    # Check for errors
+                    # Check for any remaining streams
                     if ($powershell.Streams.Error.Count -gt 0) {
-                        & $updateUI "`r`nErrors:`r`n"
+                        & $updateUI "`r`nFinal Errors:`r`n"
                         foreach ($error in $powershell.Streams.Error) {
                             & $updateUI "ERROR: $error`r`n"
                         }
                     }
                     
-                    # Check for warnings
                     if ($powershell.Streams.Warning.Count -gt 0) {
-                        & $updateUI "`r`nWarnings:`r`n"
+                        & $updateUI "`r`nFinal Warnings:`r`n"
                         foreach ($warning in $powershell.Streams.Warning) {
                             & $updateUI "WARNING: $warning`r`n"
                         }
                     }
                     
-                    # Check for verbose output
                     if ($powershell.Streams.Verbose.Count -gt 0) {
-                        & $updateUI "`r`nVerbose Output:`r`n"
+                        & $updateUI "`r`nFinal Verbose Output:`r`n"
                         foreach ($verbose in $powershell.Streams.Verbose) {
                             & $updateUI "VERBOSE: $verbose`r`n"
                         }
