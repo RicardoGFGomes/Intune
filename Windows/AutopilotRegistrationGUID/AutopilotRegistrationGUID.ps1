@@ -881,7 +881,6 @@ try {
                     }
                     
                     # Force close the window immediately
-                    $progressWindow.DialogResult = $false
                     $progressWindow.Close()
                     Write-Host "Progress window closed" -ForegroundColor Green
                 }
