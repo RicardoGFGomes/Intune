@@ -23,16 +23,11 @@ You can execute any script directly from this repository without downloading it 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/Other/[ScriptName].ps1' -UseBasicParsing).Content"
 ```
 
-### Examples:
+### Example:
 
 **Start-AutopilotRegistrationGUID.ps1:**
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/Other/Start-AutopilotRegistrationGUID.ps1' -UseBasicParsing).Content"
-```
-
-**Convert-CertificatetoCSP.ps1:**
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/RicardoGFGomes/Intune/refs/heads/main/Other/Convert-CertificatetoCSP.ps1' -UseBasicParsing).Content"
 ```
 
 ---
