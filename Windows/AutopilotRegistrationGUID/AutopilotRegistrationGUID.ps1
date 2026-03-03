@@ -113,7 +113,10 @@ function Connect-ToGraphAPI {
     #>
     try {
         $scopes = @(
-            "DeviceManagementServiceConfig.Read.All",
+            "DeviceManagementServiceConfig.ReadWrite.All",
+            "DeviceManagementManagedDevices.ReadWrite.All",
+            "Device.ReadWrite.All",
+            "Group.Read.All",
             "Directory.Read.All"
         )
         
@@ -977,7 +980,7 @@ try {
                         $context = Get-MgContext -ErrorAction SilentlyContinue
                         if (-not $context) {
                             # If no context exists, connect with NoWelcome
-                            Connect-MgGraph -Scopes "DeviceManagementServiceConfig.Read.All", "Directory.Read.All" -NoWelcome -ErrorAction SilentlyContinue | Out-Null
+                            Connect-MgGraph -Scopes "DeviceManagementServiceConfig.ReadWrite.All", "DeviceManagementManagedDevices.ReadWrite.All", "Device.ReadWrite.All", "Group.Read.All", "Directory.Read.All" -NoWelcome -ErrorAction SilentlyContinue | Out-Null
                         }
                         
                         Get-WindowsAutopilotinfo @params
