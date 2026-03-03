@@ -864,11 +864,24 @@ try {
             
             $closeButton.Add_Click({
                 try {
+                    # Stop any running PowerShell processes
+                    if ($powershell -and -not $powershell.InvocationStateInfo.State -eq [System.Management.Automation.PSInvocationState]::Completed) {
+                        $powershell.Stop()
+                    }
+                    
+                    # Close the window
+                    $progressWindow.DialogResult = $true
                     $progressWindow.Close()
                 }
                 catch {
-                    # Ignore close errors
+                    # Force close if normal close fails
                     Write-Verbose "Progress window close error: $_"
+                    try {
+                        $progressWindow.Hide()
+                    }
+                    catch {
+                        # Final fallback - just continue
+                    }
                 }
             })
             
@@ -973,18 +986,11 @@ try {
                     if ($RebootAfter) { $params.Add("Reboot", $true) }
                     
                     try {
-                        # Try to reuse existing Graph connection to avoid welcome message
-                        $context = Get-MgContext -ErrorAction SilentlyContinue
-                        if (-not $context) {
-                            # If no context exists, connect with NoWelcome
-                            Connect-MgGraph -Scopes "DeviceManagementServiceConfig.ReadWrite.All", "Directory.Read.All" -NoWelcome -ErrorAction SilentlyContinue | Out-Null
-                        }
-                        
                         # Enable verbose output to capture progress messages
                         $VerbosePreference = "Continue"
                         $InformationPreference = "Continue"
                         
-                        # Run the command with verbose output
+                        # Run the command with verbose output (Graph connection handled by Get-WindowsAutopilotinfo)
                         Get-WindowsAutopilotinfo @params -Verbose
                     }
                     catch {
@@ -1108,15 +1114,20 @@ try {
                 & $updateUI "Execution Error: $($_.Exception.Message)`r`n"
                 & $updateUI "Stack Trace: $($_.Exception.StackTrace)`r`n"
             }
-            # Enable close button when done
+            # Stop progress bar and enable close button when done
             try {
                 $progressWindow.Dispatcher.Invoke([System.Action]{
+                    $regProgress = $progressWindow.FindName("RegProgress")
+                    if ($regProgress) {
+                        $regProgress.IsIndeterminate = $false
+                        $regProgress.Value = 100
+                    }
                     $closeButton.IsEnabled = $true
                 }, [System.Windows.Threading.DispatcherPriority]::Normal)
             }
             catch {
                 # If UI update fails, just continue - window might be closed
-                Write-Verbose "Could not enable close button: $_"
+                Write-Verbose "Could not update progress bar or enable close button: $_"
             }
             
         }
@@ -1136,17 +1147,23 @@ try {
                 [System.Windows.Forms.MessageBox]::Show($errorMessage, "Registration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
             
-            # Enable close button even on error
+            # Stop progress bar and enable close button even on error
             try {
                 if ($progressWindow -and -not $progressWindow.Dispatcher.HasShutdownStarted) {
                     $progressWindow.Dispatcher.Invoke([System.Action]{
+                        $regProgress = $progressWindow.FindName("RegProgress")
+                        if ($regProgress) {
+                            $regProgress.IsIndeterminate = $false
+                            $regProgress.Foreground = "#D32F2F"  # Red color for error
+                            $regProgress.Value = 100  # Show as full red bar for error
+                        }
                         $closeButton.IsEnabled = $true
                     }, [System.Windows.Threading.DispatcherPriority]::Normal)
                 }
             }
             catch {
                 # Ignore if we can't enable the close button - window might be closed
-                Write-Verbose "Could not enable close button on error: $_"
+                Write-Verbose "Could not update progress bar or enable close button on error: $_"
             }
         }
         finally {
@@ -1212,25 +1229,71 @@ try {
         try {
             Write-Host "Starting cleanup process..." -ForegroundColor Yellow
             
-            # Disconnect from Graph API
+            # Disconnect from Graph API first
             try {
                 Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
                 Write-Host "Disconnected from Microsoft Graph API" -ForegroundColor Green
             }
             catch { }
             
-            # Uninstall Microsoft Graph modules
-            $modulesToRemove = @("Microsoft.Graph.Authentication", "Microsoft.Graph.DeviceManagement")
+            # Remove all Graph modules from memory first to avoid "in-use" errors
+            $allGraphModules = Get-Module -Name "Microsoft.Graph.*" -ErrorAction SilentlyContinue
+            if ($allGraphModules) {
+                Write-Host "Removing Graph modules from memory..." -ForegroundColor Yellow
+                foreach ($loadedModule in $allGraphModules) {
+                    try {
+                        Remove-Module -Name $loadedModule.Name -Force -ErrorAction SilentlyContinue
+                        Write-Host "Removed $($loadedModule.Name) from memory" -ForegroundColor Green
+                    }
+                    catch {
+                        Write-Host "Warning: Could not remove $($loadedModule.Name) from memory" -ForegroundColor Yellow
+                    }
+                }
+            }
+            
+            # Comprehensive list of Graph modules to uninstall (including dependencies)
+            $modulesToRemove = @(
+                "Microsoft.Graph.Authentication",
+                "Microsoft.Graph.DeviceManagement", 
+                "Microsoft.Graph.Groups",
+                "Microsoft.Graph.Intune",
+                "Microsoft.Graph.Identity.DirectoryManagement",
+                "Microsoft.Graph.Users",
+                "Microsoft.Graph.Applications",
+                "Microsoft.Graph.Core"
+            )
+            
             foreach ($module in $modulesToRemove) {
                 try {
-                    if (Get-Module -ListAvailable -Name $module -ErrorAction SilentlyContinue) {
+                    $installedVersions = Get-Module -ListAvailable -Name $module -ErrorAction SilentlyContinue
+                    if ($installedVersions) {
                         Write-Host "Uninstalling $module..." -ForegroundColor Yellow
-                        Uninstall-Module -Name $module -Force -AllVersions -ErrorAction Stop
-                        Write-Host "Successfully uninstalled $module" -ForegroundColor Green
+                        
+                        # Try to uninstall all versions
+                        foreach ($version in $installedVersions) {
+                            try {
+                                Uninstall-Module -Name $module -RequiredVersion $version.Version -Force -ErrorAction Stop
+                                Write-Host "Successfully uninstalled $module version $($version.Version)" -ForegroundColor Green
+                            }
+                            catch {
+                                # If individual version fails, try force uninstall all versions
+                                try {
+                                    Uninstall-Module -Name $module -AllVersions -Force -ErrorAction Stop
+                                    Write-Host "Force uninstalled all versions of $module" -ForegroundColor Green
+                                    break
+                                }
+                                catch {
+                                    Write-Host "Warning: Could not uninstall $module : $($_.Exception.Message)" -ForegroundColor Yellow
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        Write-Host "$module is not installed" -ForegroundColor Gray
                     }
                 }
                 catch {
-                    Write-Host "Warning: Could not uninstall $module : $_" -ForegroundColor Yellow
+                    Write-Host "Warning: Could not check/uninstall $module : $($_.Exception.Message)" -ForegroundColor Yellow
                 }
             }
             
