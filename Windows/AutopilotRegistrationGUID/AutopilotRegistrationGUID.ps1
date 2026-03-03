@@ -1,5 +1,5 @@
 #Requires -RunAsAdministrator
-<#
+<# 
 .SYNOPSIS
     Autopilot Registration GUID Tool - WPF UI for managing Autopilot profiles and device information
     
