@@ -116,8 +116,11 @@ function Connect-ToGraphAPI {
             "DeviceManagementServiceConfig.ReadWrite.All",
             "DeviceManagementManagedDevices.ReadWrite.All",
             "Device.ReadWrite.All",
+            "DeviceManagementApps.ReadWrite.All",
             "Group.Read.All",
-            "Directory.Read.All"
+            "Directory.Read.All",
+            "Organization.Read.All",
+            "User.Read.All"
         )
         
         # Disable WAM and use web authentication
@@ -896,6 +899,28 @@ try {
                 }, [System.Windows.Threading.DispatcherPriority]::Normal)
             }
             
+            # Force a fresh Graph connection with all required scopes before registration
+            try {
+                & $updateUI "Ensuring Graph API permissions for device registration...`r`n"
+                Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+                $scopes = @(
+                    "DeviceManagementServiceConfig.ReadWrite.All",
+                    "DeviceManagementManagedDevices.ReadWrite.All", 
+                    "Device.ReadWrite.All",
+                    "DeviceManagementApps.ReadWrite.All",
+                    "Group.Read.All",
+                    "Directory.Read.All",
+                    "Organization.Read.All",
+                    "User.Read.All"
+                )
+                Connect-MgGraph -Scopes $scopes -NoWelcome -ErrorAction Stop | Out-Null
+                & $updateUI "Graph API reconnected with device registration permissions`r`n`r`n"
+            }
+            catch {
+                & $updateUI "ERROR: Failed to establish Graph API connection with required permissions: $($_.Exception.Message)`r`n"
+                return
+            }
+            
             # Build command parameters using hashtable for proper splatting
             $params = @{
                 Online = $true
@@ -976,17 +1001,77 @@ try {
                     if ($RebootAfter) { $params.Add("Reboot", $true) }
                     
                     try {
-                        # Try to reuse existing Graph connection to avoid welcome message
-                        $context = Get-MgContext -ErrorAction SilentlyContinue
-                        if (-not $context) {
-                            # If no context exists, connect with NoWelcome
-                            Connect-MgGraph -Scopes "DeviceManagementServiceConfig.ReadWrite.All", "DeviceManagementManagedDevices.ReadWrite.All", "Device.ReadWrite.All", "Group.Read.All", "Directory.Read.All" -NoWelcome -ErrorAction SilentlyContinue | Out-Null
+                        Write-Output "Initializing Graph API connection for device registration..."
+                        
+                        # Force disconnect and reconnect to ensure fresh permissions
+                        try {
+                            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+                            Write-Output "Disconnected from any existing Graph session"
+                        } catch { }
+                        
+                        # Connect with full scope set required for device registration
+                        Write-Output "Connecting to Graph with comprehensive scopes..."
+                        $scopes = @(
+                            "DeviceManagementServiceConfig.ReadWrite.All",
+                            "DeviceManagementManagedDevices.ReadWrite.All",
+                            "Device.ReadWrite.All", 
+                            "DeviceManagementApps.ReadWrite.All",
+                            "Group.Read.All",
+                            "Directory.Read.All",
+                            "Organization.Read.All",
+                            "User.Read.All"
+                        )
+                        Connect-MgGraph -Scopes $scopes -NoWelcome -Force -ErrorAction Stop | Out-Null
+                        
+                        # Verify connection and scopes
+                        $context = Get-MgContext
+                        Write-Output "Connected to Graph successfully"
+                        Write-Output "Account: $($context.Account)"
+                        Write-Output "TenantId: $($context.TenantId)" 
+                        Write-Output "Scopes: $($context.Scopes -join ', ')"
+                        
+                        # Verify we have the minimum required permissions
+                        $requiredScopes = @("DeviceManagementServiceConfig.ReadWrite.All", "Device.ReadWrite.All")
+                        $currentScopes = $context.Scopes
+                        $missingScopes = $requiredScopes | Where-Object { $_ -notin $currentScopes }
+                        
+                        if ($missingScopes.Count -gt 0) {
+                            throw "Missing required scopes: $($missingScopes -join ', ')"
                         }
                         
-                        Get-WindowsAutopilotinfo @params
+                        Write-Output "All required permissions verified. Starting device registration..."
+                        Write-Output ""
+                        
+                        # Enable verbose output for Get-WindowsAutopilotinfo 
+                        $VerbosePreference = "Continue"
+                        Get-WindowsAutopilotinfo @params -Verbose
                     }
                     catch {
                         Write-Error "Error running Get-WindowsAutopilotinfo: $($_.Exception.Message)"
+                        
+                        # Provide detailed error information
+                        if ($_.Exception.InnerException) {
+                            Write-Error "Inner exception: $($_.Exception.InnerException.Message)"
+                        }
+                        
+                        # Check for HTTP response details if it's a web exception
+                        if ($_.Exception -is [System.Net.WebException] -and $_.Exception.Response) {
+                            $response = $_.Exception.Response
+                            Write-Error "HTTP Status: $($response.StatusCode) - $($response.StatusDescription)"
+                        }
+                        
+                        # Check current Graph context if authentication failed
+                        try {
+                            $context = Get-MgContext -ErrorAction SilentlyContinue
+                            if ($context) {
+                                Write-Output "Current Graph Context - Account: $($context.Account), Scopes: $($context.Scopes -join ', ')"
+                            } else {
+                                Write-Error "No Graph context available - authentication may have failed"
+                            }
+                        } catch {
+                            Write-Error "Could not retrieve Graph context: $($_.Exception.Message)"
+                        }
+                        
                         throw
                     }
                 })
