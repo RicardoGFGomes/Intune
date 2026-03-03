@@ -432,8 +432,6 @@ function New-WPFWindow {
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             
-            <Button Grid.Row="0" x:Name="ConnectGraphButton" Content="Connect to Graph API" Height="40" Background="#0078D4" Foreground="White" FontSize="14" Margin="0,0,0,15" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
-            
             <Border Grid.Row="1" Background="White" BorderBrush="#E0E0E0" BorderThickness="1" Padding="15">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -444,7 +442,10 @@ function New-WPFWindow {
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     
-                    <TextBlock Grid.Row="0" Text="Autopilot Profiles" FontSize="13" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="0" Margin="0,0,0,10">
+                        <Run Text="Autopilot Profiles" FontSize="13" FontWeight="Bold"/>
+                        <Run x:Name="ProfileCountText" Text="" FontSize="11" FontWeight="Normal"/>
+                    </TextBlock>
                     
                     <Grid Grid.Row="1" Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
@@ -489,7 +490,7 @@ function New-WPFWindow {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <Button Grid.Column="1" x:Name="RegisterDeviceButton" Content="Register Device" Width="140" Height="32" Background="#0078D4" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="1" x:Name="RegisterDeviceButton" Content="Connect to Graph API" Width="140" Height="32" Background="#0078D4" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
                 <Button Grid.Column="2" x:Name="CleanupButton" Content="Cleanup" Width="100" Height="32" Background="#FF8C00" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
                 <Button Grid.Column="3" x:Name="RefreshButton" Content="Refresh Profiles" Width="130" Height="32" Background="#107C10" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
                 <Button Grid.Column="4" x:Name="ExitButton" Content="Exit" Width="90" Height="32" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
@@ -640,7 +641,6 @@ try {
     $InternetStatusText = $window.FindName("InternetStatusText")
     $GraphStatusIndicator = $window.FindName("GraphStatusIndicator")
     $GraphStatusText = $window.FindName("GraphStatusText")
-    $ConnectGraphButton = $window.FindName("ConnectGraphButton")
     $ProfileDropdown = $window.FindName("ProfileDropdown")
     $GroupTagText = $window.FindName("GroupTagText")
     $GroupsList = $window.FindName("GroupsList")
@@ -650,9 +650,10 @@ try {
     $CleanupButton = $window.FindName("CleanupButton")
     $RefreshButton = $window.FindName("RefreshButton")
     $ExitButton = $window.FindName("ExitButton")
+    $ProfileCountText = $window.FindName("ProfileCountText")
     
     # Verify critical controls were found
-    if ($ComputerNameText -eq $null -or $RegisterDeviceButton -eq $null -or $ConnectGraphButton -eq $null) {
+    if ($ComputerNameText -eq $null -or $RegisterDeviceButton -eq $null) {
         throw "Critical UI controls not found - XAML may be corrupted"
     }
     
@@ -673,15 +674,16 @@ try {
         $InternetStatusText.Text = "Internet: Disconnected"
     }
     
-    # Connect to Graph API button event
-    $ConnectGraphButton.Add_Click({
-        $ConnectGraphButton.IsEnabled = $false
-        $ConnectGraphButton.Content = "Connecting..."
+    # Helper function to handle Graph API connection
+    function Invoke-GraphConnection {
+        $window.Dispatcher.Invoke([System.Action]{
+            $RegisterDeviceButton.IsEnabled = $false
+            $RegisterDeviceButton.Content = "Connecting..."
+        })
         
         if (Connect-ToGraphAPI) {
             $GraphStatusIndicator.Fill = "#4CAF50"
             $GraphStatusText.Text = "Graph API: Connected"
-            $ConnectGraphButton.Visibility = [System.Windows.Visibility]::Collapsed
             $RefreshButton.IsEnabled = $true
             $ProfileDropdown.IsEnabled = $true
             
@@ -695,20 +697,29 @@ try {
                 foreach ($profile in $profiles) {
                     [void]$ProfileDropdown.Items.Add($profile.Name)
                 }
-                [System.Windows.Forms.MessageBox]::Show("Successfully connected! Found $($profiles.Count) profile(s).", "Connection Successful", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                # Update profile count text instead of popup
+                $ProfileCountText.Text = " ($($profiles.Count) profiles found)"
             }
             else {
-                [System.Windows.Forms.MessageBox]::Show("Connected to Graph API, but no profiles found.", "No Profiles", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                $ProfileCountText.Text = " (no profiles found)"
             }
+            
+            # Update button for registration mode
+            $window.Dispatcher.Invoke([System.Action]{
+                $RegisterDeviceButton.Content = "Register Device"
+                $RegisterDeviceButton.IsEnabled = $false  # Will be enabled when profile is selected
+            })
         }
         else {
             $GraphStatusIndicator.Fill = "#D32F2F"
             $GraphStatusText.Text = "Graph API: Connection Failed"
-            $ConnectGraphButton.IsEnabled = $true
-            $ConnectGraphButton.Content = "Connect to Graph API"
+            $window.Dispatcher.Invoke([System.Action]{
+                $RegisterDeviceButton.IsEnabled = $true
+                $RegisterDeviceButton.Content = "Connect to Graph API"
+            })
             [System.Windows.Forms.MessageBox]::Show("Failed to connect to Graph API. Please try again.", "Connection Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
-    })
+    }
     
     # Profile dropdown selection changed
     $ProfileDropdown.Add_SelectionChanged({
@@ -771,14 +782,24 @@ try {
             [void]$ProfileDropdown.Items.Add($profile.Name)
         }
         
+        # Update profile count text
+        $ProfileCountText.Text = " ($($profiles.Count) profiles found)"
+        
         $RefreshButton.Content = "Refresh Profiles"
         $RefreshButton.IsEnabled = $true
         [System.Windows.Forms.MessageBox]::Show("Profiles refreshed!", "Refresh Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
     })
     
-    # Register Device button
+    # Register Device button (handles both connection and registration)
     $RegisterDeviceButton.Add_Click({
         try {
+            # Check if we need to connect to Graph API first
+            if (-not $global:graphConnected) {
+                Invoke-GraphConnection
+                return
+            }
+            
+            # Handle device registration
             if ([string]::IsNullOrWhiteSpace($script:selectedGroupTag)) {
                 [System.Windows.Forms.MessageBox]::Show("No Group Tag (OrderID) found. Please select a profile with a Group Tag.", "Missing Group Tag", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                 return
@@ -1149,10 +1170,12 @@ try {
             $global:graphConnected = $false
             $GraphStatusIndicator.Fill = "#D32F2F"
             $GraphStatusText.Text = "Graph API: Not Connected"
-            $ConnectGraphButton.Visibility = [System.Windows.Visibility]::Visible
+            $RegisterDeviceButton.Content = "Connect to Graph API"
+            $RegisterDeviceButton.IsEnabled = $true
             $RefreshButton.IsEnabled = $false
             $ProfileDropdown.IsEnabled = $false
             $ProfileDropdown.Items.Clear()
+            $ProfileCountText.Text = ""
             $GroupTagText.Text = "No profile selected"
             $GroupsList.Items.Clear()
             
