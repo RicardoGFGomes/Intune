@@ -541,7 +541,14 @@ function New-WPFWindow {
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <CheckBox Grid.Column="0" x:Name="AssignGroupCheckbox" Content="Assign to Group:" VerticalAlignment="Center" IsEnabled="False"/>
-                                <ComboBox Grid.Column="1" x:Name="GroupDropdown" Height="24" MaxDropDownHeight="80" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Select an EntraID group (non-dynamic only)"/>
+                                <ComboBox Grid.Column="1" x:Name="GroupDropdown" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Select an EntraID group (non-dynamic only)" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="True">
+                                    <ComboBox.Resources>
+                                        <Style TargetType="ComboBox">
+                                            <Setter Property="MaxDropDownHeight" Value="72"/>
+                                            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+                                        </Style>
+                                    </ComboBox.Resources>
+                                </ComboBox>
                             </Grid>
                             
                             <!-- Script Options -->
