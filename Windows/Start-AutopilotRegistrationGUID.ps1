@@ -1082,8 +1082,8 @@ try {
             
             if ($AssignGroupCheckbox.IsChecked) {
                 $selectedGroupItem = $GroupDropdown.SelectedItem
-                if ($selectedGroupItem -and $selectedGroupItem.Tag) {
-                    $params.Add("AddToGroup", $selectedGroupItem.Tag)
+                if ($selectedGroupItem -and $selectedGroupItem.Content) {
+                    $params.Add("AddToGroup", $selectedGroupItem.Content)
                 }
             }
             
@@ -1126,7 +1126,7 @@ try {
                 if ($RebootCheckbox.IsChecked) { $cmdArgs += "-Reboot" }
                 if ($ComputerNameCheckbox.IsChecked) { $cmdArgs += "-AssignedComputerName"; $cmdArgs += "`"$($ComputerNameTextBox.Text.Trim())`"" }
                 if ($AssignGroupCheckbox.IsChecked -and $GroupDropdown.SelectedItem) { 
-                    $cmdArgs += "-AddToGroup"; $cmdArgs += "`"$($GroupDropdown.SelectedItem.Tag)`"" 
+                    $cmdArgs += "-AddToGroup"; $cmdArgs += "`"$($GroupDropdown.SelectedItem.Content)`"" 
                 }
                 
                 $cmdString = "Get-WindowsAutopilotinfo $($cmdArgs -join ' ')"
@@ -1144,7 +1144,7 @@ try {
                 }
                 $runspace.SessionStateProxy.SetVariable("UseGroupAssignment", $AssignGroupCheckbox.IsChecked)
                 if ($AssignGroupCheckbox.IsChecked -and $GroupDropdown.SelectedItem) {
-                    $runspace.SessionStateProxy.SetVariable("AddToGroupID", $GroupDropdown.SelectedItem.Tag)
+                    $runspace.SessionStateProxy.SetVariable("AddToGroupName", $GroupDropdown.SelectedItem.Content)
                 }
                 
                 # Set environment variable to suppress Graph welcome messages
@@ -1171,7 +1171,7 @@ try {
                     if ($WaitForAssignment) { $params.Add("Assign", $true) }
                     if ($RebootAfter) { $params.Add("Reboot", $true) }
                     if ($UseComputerName -and $AssignedComputerName) { $params.Add("AssignedComputerName", $AssignedComputerName) }
-                    if ($UseGroupAssignment -and $AddToGroupID) { $params.Add("AddToGroup", $AddToGroupID) }
+                    if ($UseGroupAssignment -and $AddToGroupName) { $params.Add("AddToGroup", $AddToGroupName) }
                     
                     try {
                         # Enable verbose output to capture progress messages
