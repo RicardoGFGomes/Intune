@@ -952,7 +952,11 @@ try {
     # Refresh profiles button
     $RefreshButton.Add_Click({
         $RefreshButton.IsEnabled = $false
-        $RefreshButton.Content = "Refreshing..."
+        # Update the text part of the refresh button
+        $buttonContent = $RefreshButton.Content -as [System.Windows.Controls.StackPanel]
+        if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+            ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Refreshing..."
+        }
         
         $ProfileDropdown.Items.Clear()
         $profiles = Get-AutopilotProfilesV2
@@ -964,7 +968,11 @@ try {
         # Update profile count text
         $ProfileCountText.Text = " ($($profiles.Count) profiles found)"
         
-        $RefreshButton.Content = "Refresh Profiles"
+        # Reset the refresh button text
+        $buttonContent = $RefreshButton.Content -as [System.Windows.Controls.StackPanel]
+        if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+            ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Refresh"
+        }
         $RefreshButton.IsEnabled = $true
         [System.Windows.Forms.MessageBox]::Show("Profiles refreshed!", "Refresh Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
     })
@@ -1443,7 +1451,11 @@ try {
             try {
                 $window.Dispatcher.Invoke([System.Action]{
                     $RegisterDeviceButton.IsEnabled = $true
-                    $RegisterDeviceButton.Content = "Register Device"
+                    # Update the text part of the button
+                    $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
+                    if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+                        ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Register"
+                    }
                 }, [System.Windows.Threading.DispatcherPriority]::Normal)
             }
             catch {
@@ -1468,7 +1480,11 @@ try {
         try {
             $window.Dispatcher.Invoke([System.Action]{
                 $RegisterDeviceButton.IsEnabled = $true
-                $RegisterDeviceButton.Content = "Register Device"
+                # Update the text part of the button
+                $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
+                if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+                    ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Register"
+                }
             }, [System.Windows.Threading.DispatcherPriority]::Normal)
         }
         catch {
@@ -1486,7 +1502,11 @@ try {
         }
         
         $CleanupButton.IsEnabled = $false
-        $CleanupButton.Content = "Cleaning..."
+        # Update the text part of the cleanup button
+        $buttonContent = $CleanupButton.Content -as [System.Windows.Controls.StackPanel]
+        if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+            ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Cleaning..."
+        }
         
         try {
             Write-Host "Starting AGGRESSIVE cleanup process..." -ForegroundColor Yellow
@@ -1654,7 +1674,11 @@ try {
             $global:graphConnected = $false
             $GraphStatusIndicator.Fill = "#D32F2F"
             $GraphStatusText.Text = "Graph API: Not Connected"
-            $RegisterDeviceButton.Content = "Connect to Graph API"
+            # Update the register button text
+            $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
+            if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+                ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Connect"
+            }
             $RegisterDeviceButton.IsEnabled = $true
             $RefreshButton.IsEnabled = $false
             $ProfileDropdown.IsEnabled = $false
@@ -1670,7 +1694,11 @@ try {
         }
         finally {
             $CleanupButton.IsEnabled = $true
-            $CleanupButton.Content = "Cleanup"
+            # Reset the cleanup button text
+            $buttonContent = $CleanupButton.Content -as [System.Windows.Controls.StackPanel]
+            if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+                ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Clean"
+            }
         }
     })
     
