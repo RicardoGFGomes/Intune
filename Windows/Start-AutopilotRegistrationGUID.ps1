@@ -1027,7 +1027,7 @@ try {
                     Write-Host "Close button clicked, attempting to stop processes..." -ForegroundColor Yellow
                     
                     # Stop any running PowerShell processes stored in window tag
-                    if ($progressWindow.Tag.PowerShell) {
+                    if ($progressWindow -and $progressWindow.Tag -and $progressWindow.Tag.PowerShell) {
                         try {
                             $progressWindow.Tag.PowerShell.Stop()
                             Write-Host "Stopped PowerShell process" -ForegroundColor Green
@@ -1038,20 +1038,21 @@ try {
                     }
                     
                     # Force close the window immediately
-                    $progressWindow.Close()
-                    Write-Host "Progress window closed" -ForegroundColor Green
+                    if ($progressWindow -and -not $progressWindow.Dispatcher.HasShutdownStarted) {
+                        $progressWindow.Close()
+                        Write-Host "Progress window closed" -ForegroundColor Green
+                    }
                 }
                 catch {
                     Write-Host "Error in close handler: $_" -ForegroundColor Red
-                    # Nuclear option - try to dispose everything
+                    # Try to hide the window if close fails
                     try {
-                        $progressWindow.Hide()
+                        if ($progressWindow) {
+                            $progressWindow.Hide()
+                        }
                     }
                     catch {
-                        try {
-                            [System.Windows.Forms.Application]::Exit()
-                        }
-                        catch {}
+                        Write-Host "Could not hide progress window" -ForegroundColor Red
                     }
                 }
             })
