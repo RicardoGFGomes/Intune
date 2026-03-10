@@ -297,6 +297,38 @@ function Get-GroupAssignmentsForProfile {
     }
 }
 
+function Get-EntraIDGroups {
+    <#
+    .SYNOPSIS
+    Retrieves non-dynamic EntraID groups from Microsoft Graph
+    #>
+    try {
+        # Query for groups that are not dynamic (no membershipRule)
+        $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(c:c eq 'Unified') or mailEnabled eq false&`$select=id,displayName,membershipRule,membershipRuleProcessingState&`$top=999"
+        $groups = Invoke-MgGraphRequest -Method GET -Uri $uri -ErrorAction Stop
+        
+        $nonDynamicGroups = @()
+        if ($groups.value) {
+            foreach ($group in $groups.value) {
+                # Include only non-dynamic groups (no membershipRule or empty membershipRule)
+                if ([string]::IsNullOrWhiteSpace($group.membershipRule)) {
+                    $nonDynamicGroups += @{
+                        Name = $group.displayName
+                        ID = $group.id
+                    }
+                }
+            }
+        }
+        
+        # Sort groups by name for better user experience
+        return $nonDynamicGroups | Sort-Object Name
+    }
+    catch {
+        Write-Error "Failed to retrieve EntraID groups: $_"
+        return @()
+    }
+}
+
 # ==================== WPF Form Creation ====================
 
 function New-WPFWindow {
