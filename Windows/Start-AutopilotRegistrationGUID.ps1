@@ -531,7 +531,7 @@ function New-WPFWindow {
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <CheckBox Grid.Column="0" x:Name="ComputerNameCheckbox" Content="Assign Computer Name:" VerticalAlignment="Center" IsEnabled="False"/>
-                                <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 characters)"/>
+                                <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 chars, letters/numbers/hyphens only, cannot start/end with hyphen or be all numbers)"/>
                             </Grid>
                             
                             <!-- Group Assignment -->
@@ -565,30 +565,10 @@ function New-WPFWindow {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <Button Grid.Column="1" x:Name="RegisterDeviceButton" Width="140" Height="32" Background="#0078D4" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}" ToolTip="Connect to Graph API">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="📡" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Connect" FontSize="11" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button Grid.Column="2" x:Name="CleanupButton" Width="100" Height="32" Background="#FF8C00" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}" ToolTip="Cleanup">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="🗑" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Clean" FontSize="11" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button Grid.Column="3" x:Name="RefreshButton" Width="130" Height="32" Background="#107C10" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}" ToolTip="Refresh Profiles">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="↻" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Refresh" FontSize="11" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button Grid.Column="4" x:Name="ExitButton" Width="90" Height="32" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}" ToolTip="Exit Application">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="✕" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Exit" FontSize="11" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
+                <Button Grid.Column="1" x:Name="RegisterDeviceButton" Content="Connect" Width="110" Height="32" Background="#0078D4" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="2" x:Name="CleanupButton" Content="Cleanup" Width="110" Height="32" Background="#FF8C00" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="3" x:Name="RefreshButton" Content="Refresh" Width="110" Height="32" Background="#107C10" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="4" x:Name="ExitButton" Content="Exit" Width="110" Height="32" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
             </Grid>
         </Border>
     </Grid>
@@ -777,11 +757,7 @@ try {
     function Invoke-GraphConnection {
         $window.Dispatcher.Invoke([System.Action]{
             $RegisterDeviceButton.IsEnabled = $false
-            # Update the text part of the button (second TextBlock in the StackPanel)
-            $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
-            if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-                ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Connecting..."
-            }
+            $RegisterDeviceButton.Content = "Connecting..."
         })
         
         if (Connect-ToGraphAPI) {
@@ -820,11 +796,7 @@ try {
             
             # Update button for registration mode
             $window.Dispatcher.Invoke([System.Action]{
-                # Update the text part of the button
-                $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
-                if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-                    ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Register"
-                }
+                $RegisterDeviceButton.Content = "Register"
                 $RegisterDeviceButton.IsEnabled = $false  # Will be enabled when profile is selected
             })
         }
@@ -833,11 +805,7 @@ try {
             $GraphStatusText.Text = "Graph API: Connection Failed"
             $window.Dispatcher.Invoke([System.Action]{
                 $RegisterDeviceButton.IsEnabled = $true
-                # Update the text part of the button
-                $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
-                if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-                    ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Connect"
-                }
+                $RegisterDeviceButton.Content = "Connect"
             })
             [System.Windows.Forms.MessageBox]::Show("Failed to connect to Graph API. Please try again.", "Connection Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
@@ -928,13 +896,30 @@ try {
     })
     
     # Computer Name text box validation
+    # Computer name validation function
+    function Test-WindowsComputerName($name) {
+        if ([string]::IsNullOrWhiteSpace($name)) { return $false, "Computer name cannot be empty" }
+        if ($name.Length -lt 4 -or $name.Length -gt 15) { return $false, "Must be 4-15 characters long" }
+        if ($name -notmatch '^[a-zA-Z0-9-]+$') { return $false, "Only letters, numbers, and hyphens allowed" }
+        if ($name.StartsWith('-') -or $name.EndsWith('-')) { return $false, "Cannot start or end with hyphen" }
+        if ($name -match '^[0-9-]+$') { return $false, "Cannot be all numbers and hyphens" }
+        return $true, "Valid computer name"
+    }
+
     $ComputerNameTextBox.Add_TextChanged({
         $text = $ComputerNameTextBox.Text
-        if ($text.Length -gt 0 -and ($text.Length -lt 4 -or $text.Length -gt 15)) {
-            $ComputerNameTextBox.Background = "#FFEBEE"  # Light red background for invalid input
-        }
-        else {
-            $ComputerNameTextBox.Background = "White"  # Normal background for valid input
+        if ($text.Length -eq 0) {
+            $ComputerNameTextBox.Background = "White"
+            $ComputerNameTextBox.ToolTip = "Enter computer name (4-15 chars, letters/numbers/hyphens only, cannot start/end with hyphen or be all numbers)"
+        } else {
+            $isValid, $message = Test-WindowsComputerName $text
+            if (-not $isValid) {
+                $ComputerNameTextBox.Background = "#FFEBEE"
+                $ComputerNameTextBox.ToolTip = "Invalid: $message"
+            } else {
+                $ComputerNameTextBox.Background = "#E8F5E8"
+                $ComputerNameTextBox.ToolTip = "Valid computer name"
+            }
         }
     })
     
@@ -952,11 +937,7 @@ try {
     # Refresh profiles button
     $RefreshButton.Add_Click({
         $RefreshButton.IsEnabled = $false
-        # Update the text part of the refresh button
-        $buttonContent = $RefreshButton.Content -as [System.Windows.Controls.StackPanel]
-        if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-            ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Refreshing..."
-        }
+        $RefreshButton.Content = "Refreshing..."
         
         $ProfileDropdown.Items.Clear()
         $profiles = Get-AutopilotProfilesV2
@@ -968,11 +949,7 @@ try {
         # Update profile count text
         $ProfileCountText.Text = " ($($profiles.Count) profiles found)"
         
-        # Reset the refresh button text
-        $buttonContent = $RefreshButton.Content -as [System.Windows.Controls.StackPanel]
-        if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-            ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Refresh"
-        }
+        $RefreshButton.Content = "Refresh"
         $RefreshButton.IsEnabled = $true
         [System.Windows.Forms.MessageBox]::Show("Profiles refreshed!", "Refresh Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
     })
@@ -995,19 +972,9 @@ try {
             # Validate computer name if checkbox is checked
             if ($ComputerNameCheckbox.IsChecked) {
                 $computerName = $ComputerNameTextBox.Text.Trim()
-                if ([string]::IsNullOrWhiteSpace($computerName)) {
-                    [System.Windows.Forms.MessageBox]::Show("Please enter a computer name or uncheck the 'Assign Computer Name' option.", "Computer Name Required", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                    $ComputerNameTextBox.Focus()
-                    return
-                }
-                if ($computerName.Length -lt 4 -or $computerName.Length -gt 15) {
-                    [System.Windows.Forms.MessageBox]::Show("Computer name must be between 4 and 15 characters long.", "Invalid Computer Name", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                    $ComputerNameTextBox.Focus()
-                    return
-                }
-                # Validate computer name characters (alphanumeric and hyphens only)
-                if ($computerName -notmatch '^[a-zA-Z0-9-]+$') {
-                    [System.Windows.Forms.MessageBox]::Show("Computer name can only contain letters, numbers, and hyphens.", "Invalid Computer Name", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                $isValid, $message = Test-WindowsComputerName $computerName
+                if (-not $isValid) {
+                    [System.Windows.Forms.MessageBox]::Show("Computer name validation failed: $message`n`nWindows computer name rules:`n• 4-15 characters long`n• Only letters, numbers, and hyphens`n• Cannot start or end with hyphen`n• Cannot be all numbers", "Invalid Computer Name", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                     $ComputerNameTextBox.Focus()
                     return
                 }
@@ -1024,11 +991,7 @@ try {
             
             $window.Dispatcher.Invoke([System.Action]{
                 $RegisterDeviceButton.IsEnabled = $false
-                # Update the text part of the button
-                $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
-                if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-                    ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Registering..."
-                }
+                $RegisterDeviceButton.Content = "Registering..."
             })
         
         # Create progress window
@@ -1451,11 +1414,7 @@ try {
             try {
                 $window.Dispatcher.Invoke([System.Action]{
                     $RegisterDeviceButton.IsEnabled = $true
-                    # Update the text part of the button
-                    $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
-                    if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-                        ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Register"
-                    }
+                    $RegisterDeviceButton.Content = "Register"
                 }, [System.Windows.Threading.DispatcherPriority]::Normal)
             }
             catch {
@@ -1480,11 +1439,7 @@ try {
         try {
             $window.Dispatcher.Invoke([System.Action]{
                 $RegisterDeviceButton.IsEnabled = $true
-                # Update the text part of the button
-                $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
-                if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-                    ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Register"
-                }
+                $RegisterDeviceButton.Content = "Register"
             }, [System.Windows.Threading.DispatcherPriority]::Normal)
         }
         catch {
@@ -1502,11 +1457,7 @@ try {
         }
         
         $CleanupButton.IsEnabled = $false
-        # Update the text part of the cleanup button
-        $buttonContent = $CleanupButton.Content -as [System.Windows.Controls.StackPanel]
-        if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-            ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Cleaning..."
-        }
+        $CleanupButton.Content = "Cleaning..."
         
         try {
             Write-Host "Starting AGGRESSIVE cleanup process..." -ForegroundColor Yellow
@@ -1675,10 +1626,7 @@ try {
             $GraphStatusIndicator.Fill = "#D32F2F"
             $GraphStatusText.Text = "Graph API: Not Connected"
             # Update the register button text
-            $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
-            if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-                ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Connect"
-            }
+            $RegisterDeviceButton.Content = "Connect"
             $RegisterDeviceButton.IsEnabled = $true
             $RefreshButton.IsEnabled = $false
             $ProfileDropdown.IsEnabled = $false
@@ -1694,11 +1642,7 @@ try {
         }
         finally {
             $CleanupButton.IsEnabled = $true
-            # Reset the cleanup button text
-            $buttonContent = $CleanupButton.Content -as [System.Windows.Controls.StackPanel]
-            if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
-                ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Clean"
-            }
+            $CleanupButton.Content = "Cleanup"
         }
     })
     
