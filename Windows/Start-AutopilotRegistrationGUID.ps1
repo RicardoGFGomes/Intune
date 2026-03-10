@@ -439,6 +439,7 @@ function New-WPFWindow {
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     
@@ -456,10 +457,20 @@ function New-WPFWindow {
                         <ComboBox Grid.Column="1" x:Name="ProfileDropdown" Margin="10,0,0,0" Height="32" IsEnabled="False"/>
                     </Grid>
                     
-                    <Border Grid.Row="2" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                    <Border Grid.Row="2" Background="#F9F9F9" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" x:Name="ComputerNameCheckbox" Content="Assign Computer Name:" VerticalAlignment="Center" IsEnabled="False"/>
+                            <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 characters)"/>
+                        </Grid>
+                    </Border>
+                    
+                    <Border Grid.Row="3" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -469,20 +480,12 @@ function New-WPFWindow {
                             <TextBlock Grid.Row="1" x:Name="GroupTagText" Text="No profile selected" FontSize="16" Foreground="#0078D4" FontWeight="Bold" Margin="0,0,0,10"/>
                             
                             <CheckBox Grid.Row="2" x:Name="WaitForRegistrationCheckbox" Content="Wait for registration (Profile Assignment)" VerticalAlignment="Center" Margin="0,0,0,5" IsEnabled="False"/>
-                            <CheckBox Grid.Row="3" x:Name="RebootCheckbox" Content="Reboot after registration" VerticalAlignment="Center" Margin="0,0,0,5" IsEnabled="False"/>
-                            <Grid Grid.Row="4" Margin="0,5,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <CheckBox Grid.Column="0" x:Name="ComputerNameCheckbox" Content="Assign Computer Name:" VerticalAlignment="Center" IsEnabled="False"/>
-                                <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 characters)"/>
-                            </Grid>
+                            <CheckBox Grid.Row="3" x:Name="RebootCheckbox" Content="Reboot after registration" VerticalAlignment="Center" IsEnabled="False"/>
                         </Grid>
                     </Border>
                     
-                    <TextBlock Grid.Row="3" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                    <ListBox Grid.Row="4" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0"/>
+                    <TextBlock Grid.Row="4" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <ListBox Grid.Row="5" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0"/>
                 </Grid>
             </Border>
         </Grid>
