@@ -565,10 +565,30 @@ function New-WPFWindow {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <Button Grid.Column="1" x:Name="RegisterDeviceButton" Content="Connect to Graph API" Width="140" Height="32" Background="#0078D4" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="2" x:Name="CleanupButton" Content="Cleanup" Width="100" Height="32" Background="#FF8C00" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="3" x:Name="RefreshButton" Content="Refresh Profiles" Width="130" Height="32" Background="#107C10" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="4" x:Name="ExitButton" Content="Exit" Width="90" Height="32" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="1" x:Name="RegisterDeviceButton" Width="140" Height="32" Background="#0078D4" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}" ToolTip="Connect to Graph API">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="📡" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Connect" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="2" x:Name="CleanupButton" Width="100" Height="32" Background="#FF8C00" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}" ToolTip="Cleanup">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🗑" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Clean" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="3" x:Name="RefreshButton" Width="130" Height="32" Background="#107C10" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}" ToolTip="Refresh Profiles">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="↻" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Refresh" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="4" x:Name="ExitButton" Width="90" Height="32" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}" ToolTip="Exit Application">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="✕" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Exit" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </Grid>
         </Border>
     </Grid>
@@ -757,7 +777,11 @@ try {
     function Invoke-GraphConnection {
         $window.Dispatcher.Invoke([System.Action]{
             $RegisterDeviceButton.IsEnabled = $false
-            $RegisterDeviceButton.Content = "Connecting..."
+            # Update the text part of the button (second TextBlock in the StackPanel)
+            $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
+            if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+                ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Connecting..."
+            }
         })
         
         if (Connect-ToGraphAPI) {
@@ -796,7 +820,11 @@ try {
             
             # Update button for registration mode
             $window.Dispatcher.Invoke([System.Action]{
-                $RegisterDeviceButton.Content = "Register Device"
+                # Update the text part of the button
+                $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
+                if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+                    ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Register"
+                }
                 $RegisterDeviceButton.IsEnabled = $false  # Will be enabled when profile is selected
             })
         }
@@ -805,7 +833,11 @@ try {
             $GraphStatusText.Text = "Graph API: Connection Failed"
             $window.Dispatcher.Invoke([System.Action]{
                 $RegisterDeviceButton.IsEnabled = $true
-                $RegisterDeviceButton.Content = "Connect to Graph API"
+                # Update the text part of the button
+                $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
+                if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+                    ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Connect"
+                }
             })
             [System.Windows.Forms.MessageBox]::Show("Failed to connect to Graph API. Please try again.", "Connection Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
@@ -984,7 +1016,11 @@ try {
             
             $window.Dispatcher.Invoke([System.Action]{
                 $RegisterDeviceButton.IsEnabled = $false
-                $RegisterDeviceButton.Content = "Registering..."
+                # Update the text part of the button
+                $buttonContent = $RegisterDeviceButton.Content -as [System.Windows.Controls.StackPanel]
+                if ($buttonContent -and $buttonContent.Children.Count -gt 1) {
+                    ($buttonContent.Children[1] -as [System.Windows.Controls.TextBlock]).Text = "Registering..."
+                }
             })
         
         # Create progress window
