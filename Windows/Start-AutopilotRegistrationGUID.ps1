@@ -471,10 +471,9 @@ function New-WPFWindow {
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     
                     <TextBlock Grid.Row="0" Margin="0,0,0,10">
@@ -482,55 +481,72 @@ function New-WPFWindow {
                         <Run x:Name="ProfileCountText" Text="" FontSize="11" FontWeight="Normal"/>
                     </TextBlock>
                     
-                    <Grid Grid.Row="1" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Profile:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1" x:Name="ProfileDropdown" Margin="10,0,0,0" Height="32" IsEnabled="False"/>
-                    </Grid>
-                    
-                    <Border Grid.Row="2" Background="#F9F9F9" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <CheckBox Grid.Column="0" x:Name="ComputerNameCheckbox" Content="Assign Computer Name:" VerticalAlignment="Center" IsEnabled="False"/>
-                            <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 characters)"/>
-                        </Grid>
-                    </Border>
-                    
-                    <Border Grid.Row="3" Background="#F9F9F9" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <CheckBox Grid.Column="0" x:Name="AssignGroupCheckbox" Content="Assign to Group:" VerticalAlignment="Center" IsEnabled="False"/>
-                            <ComboBox Grid.Column="1" x:Name="GroupDropdown" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Select an EntraID group (non-dynamic only)"/>
-                        </Grid>
-                    </Border>
-                    
-                    <Border Grid.Row="4" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                    <Border Grid.Row="1" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Profile:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" x:Name="ProfileDropdown" Margin="10,0,0,0" Height="24" Background="White" IsEnabled="False"/>
+                            </Grid>
+                            
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Group Tag (OrderID):" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" x:Name="GroupTagText" Text="No profile selected" FontSize="12" Foreground="#0078D4" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    
+                    <TextBlock Grid.Row="2" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <ListBox Grid.Row="3" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,10"/>
+                    
+                    <TextBlock Grid.Row="4" Text="Script Options" FontSize="13" FontWeight="Bold" Margin="0,0,0,10"/>
+                    
+                    <Border Grid.Row="5" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>  
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Group Tag (OrderID):" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                            <TextBlock Grid.Row="1" x:Name="GroupTagText" Text="No profile selected" FontSize="16" Foreground="#0078D4" FontWeight="Bold" Margin="0,0,0,10"/>
                             
+                            <!-- Computer Name Assignment -->
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Grid.Column="0" x:Name="ComputerNameCheckbox" Content="Assign Computer Name:" VerticalAlignment="Center" IsEnabled="False"/>
+                                <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 characters)"/>
+                            </Grid>
+                            
+                            <!-- Group Assignment -->
+                            <Grid Grid.Row="1" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Grid.Column="0" x:Name="AssignGroupCheckbox" Content="Assign to Group:" VerticalAlignment="Center" IsEnabled="False"/>
+                                <ComboBox Grid.Column="1" x:Name="GroupDropdown" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Select an EntraID group (non-dynamic only)"/>
+                            </Grid>
+                            
+                            <!-- Script Options -->
                             <CheckBox Grid.Row="2" x:Name="WaitForRegistrationCheckbox" Content="Wait for registration (Profile Assignment)" VerticalAlignment="Center" Margin="0,0,0,5" IsEnabled="False"/>
                             <CheckBox Grid.Row="3" x:Name="RebootCheckbox" Content="Reboot after registration" VerticalAlignment="Center" IsEnabled="False"/>
                         </Grid>
                     </Border>
-                    
-                    <TextBlock Grid.Row="5" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                    <ListBox Grid.Row="6" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0"/>
                 </Grid>
             </Border>
         </Grid>
