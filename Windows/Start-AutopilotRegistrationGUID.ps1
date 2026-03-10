@@ -500,7 +500,7 @@ function New-WPFWindow {
                             </Grid>
                             
                             <TextBlock Grid.Row="1" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                            <ListBox Grid.Row="2" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,10" MaxHeight="60"/>
+                            <ListBox Grid.Row="2" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,10" MinHeight="40" MaxHeight="60"/>
                             
                             <Grid Grid.Row="3">
                                 <Grid.ColumnDefinitions>
