@@ -86,7 +86,8 @@ function Initialize-GraphModules {
     #>
     $requiredModules = @(
         "Microsoft.Graph.Authentication",
-        "Microsoft.Graph.DeviceManagement"
+        "Microsoft.Graph.DeviceManagement",
+        "Microsoft.Graph.Groups"
     )
     
     foreach ($module in $requiredModules) {
@@ -440,6 +441,7 @@ function New-WPFWindow {
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     
@@ -468,7 +470,18 @@ function New-WPFWindow {
                         </Grid>
                     </Border>
                     
-                    <Border Grid.Row="3" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                    <Border Grid.Row="3" Background="#F9F9F9" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" x:Name="AssignGroupCheckbox" Content="Assign to Group:" VerticalAlignment="Center" IsEnabled="False"/>
+                            <ComboBox Grid.Column="1" x:Name="GroupDropdown" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Select an EntraID group (non-dynamic only)"/>
+                        </Grid>
+                    </Border>
+                    
+                    <Border Grid.Row="4" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -484,8 +497,8 @@ function New-WPFWindow {
                         </Grid>
                     </Border>
                     
-                    <TextBlock Grid.Row="4" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                    <ListBox Grid.Row="5" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0"/>
+                    <TextBlock Grid.Row="5" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <ListBox Grid.Row="6" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0"/>
                 </Grid>
             </Border>
         </Grid>
@@ -660,6 +673,8 @@ try {
     $RebootCheckbox = $window.FindName("RebootCheckbox")
     $ComputerNameCheckbox = $window.FindName("ComputerNameCheckbox")
     $ComputerNameTextBox = $window.FindName("ComputerNameTextBox")
+    $AssignGroupCheckbox = $window.FindName("AssignGroupCheckbox")
+    $GroupDropdown = $window.FindName("GroupDropdown")
     $RegisterDeviceButton = $window.FindName("RegisterDeviceButton")
     $CleanupButton = $window.FindName("CleanupButton")
     $RefreshButton = $window.FindName("RefreshButton")
@@ -718,6 +733,17 @@ try {
                 $ProfileCountText.Text = " (no profiles found)"
             }
             
+            # Load EntraID groups for assignment
+            $entraGroups = Get-EntraIDGroups
+            if ($entraGroups.Count -gt 0) {
+                foreach ($group in $entraGroups) {
+                    $groupItem = New-Object System.Windows.Controls.ComboBoxItem
+                    $groupItem.Content = $group.Name
+                    $groupItem.Tag = $group.ID
+                    [void]$GroupDropdown.Items.Add($groupItem)
+                }
+            }
+            
             # Update button for registration mode
             $window.Dispatcher.Invoke([System.Action]{
                 $RegisterDeviceButton.Content = "Register Device"
@@ -774,6 +800,7 @@ try {
             $WaitForRegistrationCheckbox.IsEnabled = $true
             $RebootCheckbox.IsEnabled = $true
             $ComputerNameCheckbox.IsEnabled = $true
+            $AssignGroupCheckbox.IsEnabled = $true
             $RegisterDeviceButton.IsEnabled = $true
         }
         else {
@@ -782,6 +809,8 @@ try {
             $RebootCheckbox.IsEnabled = $false
             $ComputerNameCheckbox.IsEnabled = $false
             $ComputerNameTextBox.IsEnabled = $false
+            $AssignGroupCheckbox.IsEnabled = $false
+            $GroupDropdown.IsEnabled = $false
             $RegisterDeviceButton.IsEnabled = $false
             $script:selectedGroupTag = ""
         }
@@ -807,6 +836,17 @@ try {
         else {
             $ComputerNameTextBox.Background = "White"  # Normal background for valid input
         }
+    })
+    
+    # Assign Group checkbox event handlers
+    $AssignGroupCheckbox.Add_Checked({
+        $GroupDropdown.IsEnabled = $true
+        $GroupDropdown.Focus()
+    })
+    
+    $AssignGroupCheckbox.Add_Unchecked({
+        $GroupDropdown.IsEnabled = $false
+        $GroupDropdown.SelectedIndex = -1
     })
     
     # Refresh profiles button
@@ -861,6 +901,15 @@ try {
                 if ($computerName -notmatch '^[a-zA-Z0-9-]+$') {
                     [System.Windows.Forms.MessageBox]::Show("Computer name can only contain letters, numbers, and hyphens.", "Invalid Computer Name", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                     $ComputerNameTextBox.Focus()
+                    return
+                }
+            }
+            
+            # Validate group assignment if checkbox is checked
+            if ($AssignGroupCheckbox.IsChecked) {
+                if ($GroupDropdown.SelectedIndex -lt 0 -or $GroupDropdown.SelectedItem -eq $null) {
+                    [System.Windows.Forms.MessageBox]::Show("Please select a group or uncheck the 'Assign to Group' option.", "Group Selection Required", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    $GroupDropdown.Focus()
                     return
                 }
             }
@@ -999,6 +1048,13 @@ try {
                 $params.Add("AssignedComputerName", $assignedComputerName)
             }
             
+            if ($AssignGroupCheckbox.IsChecked) {
+                $selectedGroupItem = $GroupDropdown.SelectedItem
+                if ($selectedGroupItem -and $selectedGroupItem.Tag) {
+                    $params.Add("AddToGroup", $selectedGroupItem.Tag)
+                }
+            }
+            
             # Run Get-WindowsAutopilotinfo and capture output
             try {
                 & $updateUI "Starting device registration...`r`n"
@@ -1006,6 +1062,9 @@ try {
                 if ($WaitForRegistrationCheckbox.IsChecked) { & $updateUI "Wait for Assignment: Yes`r`n" }
                 if ($RebootCheckbox.IsChecked) { & $updateUI "Reboot After: Yes`r`n" }
                 if ($ComputerNameCheckbox.IsChecked) { & $updateUI "Assigned Computer Name: $($ComputerNameTextBox.Text.Trim())`r`n" }
+                if ($AssignGroupCheckbox.IsChecked -and $GroupDropdown.SelectedItem) { 
+                    & $updateUI "Assign to Group: $($GroupDropdown.SelectedItem.Content)`r`n" 
+                }
                 & $updateUI "`r`n"
             }
             catch {
@@ -1034,6 +1093,9 @@ try {
                 if ($WaitForRegistrationCheckbox.IsChecked) { $cmdArgs += "-Assign" }
                 if ($RebootCheckbox.IsChecked) { $cmdArgs += "-Reboot" }
                 if ($ComputerNameCheckbox.IsChecked) { $cmdArgs += "-AssignedComputerName"; $cmdArgs += "`"$($ComputerNameTextBox.Text.Trim())`"" }
+                if ($AssignGroupCheckbox.IsChecked -and $GroupDropdown.SelectedItem) { 
+                    $cmdArgs += "-AddToGroup"; $cmdArgs += "`"$($GroupDropdown.SelectedItem.Tag)`"" 
+                }
                 
                 $cmdString = "Get-WindowsAutopilotinfo $($cmdArgs -join ' ')"
                 & $updateUI "Running command: $cmdString`r`n`r`n"
@@ -1047,6 +1109,10 @@ try {
                 $runspace.SessionStateProxy.SetVariable("UseComputerName", $ComputerNameCheckbox.IsChecked)
                 if ($ComputerNameCheckbox.IsChecked) {
                     $runspace.SessionStateProxy.SetVariable("AssignedComputerName", $ComputerNameTextBox.Text.Trim())
+                }
+                $runspace.SessionStateProxy.SetVariable("UseGroupAssignment", $AssignGroupCheckbox.IsChecked)
+                if ($AssignGroupCheckbox.IsChecked -and $GroupDropdown.SelectedItem) {
+                    $runspace.SessionStateProxy.SetVariable("AddToGroupID", $GroupDropdown.SelectedItem.Tag)
                 }
                 
                 # Set environment variable to suppress Graph welcome messages
@@ -1073,6 +1139,7 @@ try {
                     if ($WaitForAssignment) { $params.Add("Assign", $true) }
                     if ($RebootAfter) { $params.Add("Reboot", $true) }
                     if ($UseComputerName -and $AssignedComputerName) { $params.Add("AssignedComputerName", $AssignedComputerName) }
+                    if ($UseGroupAssignment -and $AddToGroupID) { $params.Add("AddToGroup", $AddToGroupID) }
                     
                     try {
                         # Enable verbose output to capture progress messages
