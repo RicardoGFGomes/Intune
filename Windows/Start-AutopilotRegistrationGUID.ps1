@@ -486,6 +486,8 @@ function New-WPFWindow {
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
                             <Grid Grid.Row="0" Margin="0,0,0,10">
@@ -497,7 +499,10 @@ function New-WPFWindow {
                                 <ComboBox Grid.Column="1" x:Name="ProfileDropdown" Margin="10,0,0,0" Height="24" Background="White" IsEnabled="False"/>
                             </Grid>
                             
-                            <Grid Grid.Row="1">
+                            <TextBlock Grid.Row="1" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                            <ListBox Grid.Row="2" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,10" MaxHeight="60"/>
+                            
+                            <Grid Grid.Row="3">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -508,12 +513,9 @@ function New-WPFWindow {
                         </Grid>
                     </Border>
                     
-                    <TextBlock Grid.Row="2" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                    <ListBox Grid.Row="3" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="2" Text="Script Options" FontSize="13" FontWeight="Bold" Margin="0,0,0,10"/>
                     
-                    <TextBlock Grid.Row="4" Text="Script Options" FontSize="13" FontWeight="Bold" Margin="0,0,0,10"/>
-                    
-                    <Border Grid.Row="5" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                    <Border Grid.Row="3" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -834,14 +836,17 @@ try {
                 [void]$GroupsList.Items.Add($displayText)
             }
             
-            # Display the first OrderID or combined
+            # Display the first OrderID or combined and select the first item
             if ($orderIDs.Count -gt 0) {
                 $GroupTagText.Text = $orderIDs[0]
                 $script:selectedGroupTag = $orderIDs[0]
+                # Auto-select the first group in the list to show which one is being used
+                $GroupsList.SelectedIndex = 0
             }
             else {
                 $GroupTagText.Text = "No OrderID found"
                 $script:selectedGroupTag = ""
+                $GroupsList.SelectedIndex = -1
             }
             
             # Enable checkboxes and register button
@@ -860,7 +865,22 @@ try {
             $AssignGroupCheckbox.IsEnabled = $false
             $GroupDropdown.IsEnabled = $false
             $RegisterDeviceButton.IsEnabled = $false
+            $GroupsList.Items.Clear()
+            $GroupsList.SelectedIndex = -1
             $script:selectedGroupTag = ""
+        }
+    })
+    
+    # Assigned Groups selection changed - update Group Tag based on selected group
+    $GroupsList.Add_SelectionChanged({
+        if ($GroupsList.SelectedIndex -ge 0 -and $GroupsList.SelectedItem) {
+            $selectedGroupText = $GroupsList.SelectedItem.ToString()
+            # Extract OrderID from the selected group text (format: "GroupName (OrderID: 12345)")
+            if ($selectedGroupText -match "OrderID:\s*([^)]+)") {
+                $extractedOrderID = $matches[1].Trim()
+                $GroupTagText.Text = $extractedOrderID
+                $script:selectedGroupTag = $extractedOrderID
+            }
         }
     })
     
