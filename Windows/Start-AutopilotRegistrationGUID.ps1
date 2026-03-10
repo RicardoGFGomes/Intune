@@ -463,12 +463,21 @@ function New-WPFWindow {
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Group Tag (OrderID):" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
                             <TextBlock Grid.Row="1" x:Name="GroupTagText" Text="No profile selected" FontSize="16" Foreground="#0078D4" FontWeight="Bold" Margin="0,0,0,10"/>
                             
                             <CheckBox Grid.Row="2" x:Name="WaitForRegistrationCheckbox" Content="Wait for registration (Profile Assignment)" VerticalAlignment="Center" Margin="0,0,0,5" IsEnabled="False"/>
-                            <CheckBox Grid.Row="3" x:Name="RebootCheckbox" Content="Reboot after registration" VerticalAlignment="Center" IsEnabled="False"/>
+                            <CheckBox Grid.Row="3" x:Name="RebootCheckbox" Content="Reboot after registration" VerticalAlignment="Center" Margin="0,0,0,5" IsEnabled="False"/>
+                            <Grid Grid.Row="4" Margin="0,5,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Grid.Column="0" x:Name="ComputerNameCheckbox" Content="Assign Computer Name:" VerticalAlignment="Center" IsEnabled="False"/>
+                                <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 characters)"/>
+                            </Grid>
                         </Grid>
                     </Border>
                     
@@ -646,6 +655,8 @@ try {
     $GroupsList = $window.FindName("GroupsList")
     $WaitForRegistrationCheckbox = $window.FindName("WaitForRegistrationCheckbox")
     $RebootCheckbox = $window.FindName("RebootCheckbox")
+    $ComputerNameCheckbox = $window.FindName("ComputerNameCheckbox")
+    $ComputerNameTextBox = $window.FindName("ComputerNameTextBox")
     $RegisterDeviceButton = $window.FindName("RegisterDeviceButton")
     $CleanupButton = $window.FindName("CleanupButton")
     $RefreshButton = $window.FindName("RefreshButton")
@@ -759,14 +770,39 @@ try {
             # Enable checkboxes and register button
             $WaitForRegistrationCheckbox.IsEnabled = $true
             $RebootCheckbox.IsEnabled = $true
+            $ComputerNameCheckbox.IsEnabled = $true
             $RegisterDeviceButton.IsEnabled = $true
         }
         else {
             # Disable if no profile selected
             $WaitForRegistrationCheckbox.IsEnabled = $false
             $RebootCheckbox.IsEnabled = $false
+            $ComputerNameCheckbox.IsEnabled = $false
+            $ComputerNameTextBox.IsEnabled = $false
             $RegisterDeviceButton.IsEnabled = $false
             $script:selectedGroupTag = ""
+        }
+    })
+    
+    # Computer Name checkbox event handler
+    $ComputerNameCheckbox.Add_Checked({
+        $ComputerNameTextBox.IsEnabled = $true
+        $ComputerNameTextBox.Focus()
+    })
+    
+    $ComputerNameCheckbox.Add_Unchecked({
+        $ComputerNameTextBox.IsEnabled = $false
+        $ComputerNameTextBox.Text = ""
+    })
+    
+    # Computer Name text box validation
+    $ComputerNameTextBox.Add_TextChanged({
+        $text = $ComputerNameTextBox.Text
+        if ($text.Length -gt 0 -and ($text.Length -lt 4 -or $text.Length -gt 15)) {
+            $ComputerNameTextBox.Background = "#FFEBEE"  # Light red background for invalid input
+        }
+        else {
+            $ComputerNameTextBox.Background = "White"  # Normal background for valid input
         }
     })
     
@@ -803,6 +839,27 @@ try {
             if ([string]::IsNullOrWhiteSpace($script:selectedGroupTag)) {
                 [System.Windows.Forms.MessageBox]::Show("No Group Tag (OrderID) found. Please select a profile with a Group Tag.", "Missing Group Tag", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                 return
+            }
+            
+            # Validate computer name if checkbox is checked
+            if ($ComputerNameCheckbox.IsChecked) {
+                $computerName = $ComputerNameTextBox.Text.Trim()
+                if ([string]::IsNullOrWhiteSpace($computerName)) {
+                    [System.Windows.Forms.MessageBox]::Show("Please enter a computer name or uncheck the 'Assign Computer Name' option.", "Computer Name Required", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    $ComputerNameTextBox.Focus()
+                    return
+                }
+                if ($computerName.Length -lt 4 -or $computerName.Length -gt 15) {
+                    [System.Windows.Forms.MessageBox]::Show("Computer name must be between 4 and 15 characters long.", "Invalid Computer Name", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    $ComputerNameTextBox.Focus()
+                    return
+                }
+                # Validate computer name characters (alphanumeric and hyphens only)
+                if ($computerName -notmatch '^[a-zA-Z0-9-]+$') {
+                    [System.Windows.Forms.MessageBox]::Show("Computer name can only contain letters, numbers, and hyphens.", "Invalid Computer Name", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    $ComputerNameTextBox.Focus()
+                    return
+                }
             }
             
             $window.Dispatcher.Invoke([System.Action]{
@@ -934,12 +991,18 @@ try {
                 $params.Add("Reboot", $true)
             }
             
+            if ($ComputerNameCheckbox.IsChecked) {
+                $assignedComputerName = $ComputerNameTextBox.Text.Trim()
+                $params.Add("AssignedComputerName", $assignedComputerName)
+            }
+            
             # Run Get-WindowsAutopilotinfo and capture output
             try {
                 & $updateUI "Starting device registration...`r`n"
                 & $updateUI "Group Tag: $($script:selectedGroupTag)`r`n"
                 if ($WaitForRegistrationCheckbox.IsChecked) { & $updateUI "Wait for Assignment: Yes`r`n" }
                 if ($RebootCheckbox.IsChecked) { & $updateUI "Reboot After: Yes`r`n" }
+                if ($ComputerNameCheckbox.IsChecked) { & $updateUI "Assigned Computer Name: $($ComputerNameTextBox.Text.Trim())`r`n" }
                 & $updateUI "`r`n"
             }
             catch {
@@ -967,6 +1030,7 @@ try {
                 $cmdArgs = @("-Online", "-GroupTag", "`"$($script:selectedGroupTag)`"")
                 if ($WaitForRegistrationCheckbox.IsChecked) { $cmdArgs += "-Assign" }
                 if ($RebootCheckbox.IsChecked) { $cmdArgs += "-Reboot" }
+                if ($ComputerNameCheckbox.IsChecked) { $cmdArgs += "-AssignedComputerName"; $cmdArgs += "`"$($ComputerNameTextBox.Text.Trim())`"" }
                 
                 $cmdString = "Get-WindowsAutopilotinfo $($cmdArgs -join ' ')"
                 & $updateUI "Running command: $cmdString`r`n`r`n"
@@ -977,6 +1041,10 @@ try {
                 $runspace.SessionStateProxy.SetVariable("GroupTag", $script:selectedGroupTag)
                 $runspace.SessionStateProxy.SetVariable("WaitForAssignment", $WaitForRegistrationCheckbox.IsChecked)
                 $runspace.SessionStateProxy.SetVariable("RebootAfter", $RebootCheckbox.IsChecked)
+                $runspace.SessionStateProxy.SetVariable("UseComputerName", $ComputerNameCheckbox.IsChecked)
+                if ($ComputerNameCheckbox.IsChecked) {
+                    $runspace.SessionStateProxy.SetVariable("AssignedComputerName", $ComputerNameTextBox.Text.Trim())
+                }
                 
                 # Set environment variable to suppress Graph welcome messages
                 $runspace.SessionStateProxy.SetVariable("env:POWERSHELL_TELEMETRY_OPTOUT", "1")
@@ -1001,6 +1069,7 @@ try {
                     
                     if ($WaitForAssignment) { $params.Add("Assign", $true) }
                     if ($RebootAfter) { $params.Add("Reboot", $true) }
+                    if ($UseComputerName -and $AssignedComputerName) { $params.Add("AssignedComputerName", $AssignedComputerName) }
                     
                     try {
                         # Enable verbose output to capture progress messages
