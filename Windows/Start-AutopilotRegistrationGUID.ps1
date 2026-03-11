@@ -341,8 +341,8 @@ function New-WPFWindow {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Autopilot Registration GUID Tool"
-        Height="700"
-        Width="900"
+        Height="570"
+        Width="760"
         WindowStartupLocation="CenterScreen"
         Background="#F5F5F5">
     <Window.Resources>
@@ -383,12 +383,12 @@ function New-WPFWindow {
         </Grid.RowDefinitions>
         
         <!-- Title -->
-        <Border Grid.Row="0" Background="#0078D4" Padding="20">
-            <TextBlock Text="Autopilot Registration GUID Tool" FontSize="24" FontWeight="Bold" Foreground="White"/>
+        <Border Grid.Row="0" Background="#0078D4" Padding="12">
+            <TextBlock Text="Autopilot Registration GUID Tool" FontSize="20" FontWeight="Bold" Foreground="White"/>
         </Border>
         
         <!-- Device Info Section -->
-        <Border Grid.Row="1" Background="White" Margin="10" Padding="15" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="White" Margin="8" Padding="10" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -396,25 +396,25 @@ function New-WPFWindow {
                 </Grid.ColumnDefinitions>
                 
                 <!-- Left Column: Device Info -->
-                <Grid Grid.Column="0" Margin="0,0,20,0">
+                <Grid Grid.Column="0" Margin="0,0,15,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Device Information" FontSize="13" FontWeight="Bold" Margin="0,0,0,8"/>
-                    <Grid Grid.Row="1" Margin="0,0,0,5">
+                    <TextBlock Grid.Row="0" Text="Device Information" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <Grid Grid.Row="1" Margin="0,0,0,3">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="100"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Computer:" FontWeight="SemiBold"/>
                         <TextBlock Grid.Column="1" x:Name="ComputerNameText" Text="Loading..."/>
                     </Grid>
-                    <Grid Grid.Row="2" Margin="0,0,0,5">
+                    <Grid Grid.Row="2" Margin="0,0,0,3">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="100"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="IP Address:" FontWeight="SemiBold"/>
@@ -422,7 +422,7 @@ function New-WPFWindow {
                     </Grid>
                     <Grid Grid.Row="3">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="100"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Serial Number:" FontWeight="SemiBold"/>
@@ -437,8 +437,8 @@ function New-WPFWindow {
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="System Status" FontSize="13" FontWeight="Bold" Margin="0,0,0,8"/>
-                    <Grid Grid.Row="1" Margin="0,0,0,8">
+                    <TextBlock Grid.Row="0" Text="System Status" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <Grid Grid.Row="1" Margin="0,0,0,5">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="16"/>
                             <ColumnDefinition Width="*"/>
@@ -459,13 +459,13 @@ function New-WPFWindow {
         </Border>
         
         <!-- Main Content -->
-        <Grid Grid.Row="2" Margin="10">
+        <Grid Grid.Row="2" Margin="8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             
-            <Border Grid.Row="1" Background="White" BorderBrush="#E0E0E0" BorderThickness="1" Padding="15">
+            <Border Grid.Row="1" Background="White" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -476,12 +476,12 @@ function New-WPFWindow {
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     
-                    <TextBlock Grid.Row="0" Margin="0,0,0,10">
-                        <Run Text="Autopilot Profiles" FontSize="13" FontWeight="Bold"/>
-                        <Run x:Name="ProfileCountText" Text="" FontSize="11" FontWeight="Normal"/>
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8">
+                        <Run Text="Autopilot Profiles" FontSize="12" FontWeight="Bold"/>
+                        <Run x:Name="ProfileCountText" Text="" FontSize="10" FontWeight="Normal"/>
                     </TextBlock>
                     
-                    <Border Grid.Row="1" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                    <Border Grid.Row="1" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="8" Margin="0,0,0,8">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -490,21 +490,21 @@ function New-WPFWindow {
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
-                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Profile:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Column="1" x:Name="ProfileDropdown" Margin="10,0,0,0" Height="24" Background="White" IsEnabled="False"/>
+                                <ComboBox Grid.Column="1" x:Name="ProfileDropdown" Margin="8,0,0,0" Height="22" Background="White" IsEnabled="False"/>
                             </Grid>
                             
-                            <TextBlock Grid.Row="1" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                            <ListBox Grid.Row="2" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,10" Height="72" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True">
+                            <TextBlock Grid.Row="1" Text="Assigned Groups:" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                            <ListBox Grid.Row="2" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,8" Height="60" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True">
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">
-                                        <Setter Property="Height" Value="22"/>
-                                        <Setter Property="Padding" Value="5,2"/>
+                                        <Setter Property="Height" Value="20"/>
+                                        <Setter Property="Padding" Value="4,1"/>
                                     </Style>
                                 </ListBox.ItemContainerStyle>
                             </ListBox>
@@ -514,15 +514,15 @@ function New-WPFWindow {
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Group Tag (OrderID):" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBlock Grid.Column="1" x:Name="GroupTagText" Text="No profile selected" FontSize="12" Foreground="#0078D4" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="0" Text="Group Tag (OrderID):" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" x:Name="GroupTagText" Text="No profile selected" FontSize="11" Foreground="#0078D4" FontWeight="Bold" VerticalAlignment="Center"/>
                             </Grid>
                         </Grid>
                     </Border>
                     
-                    <TextBlock Grid.Row="2" Text="Script Options" FontSize="13" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="2" Text="Script Options" FontSize="12" FontWeight="Bold" Margin="0,0,0,8"/>
                     
-                    <Border Grid.Row="3" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                    <Border Grid.Row="3" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" Padding="8" Margin="0,0,0,8">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -532,26 +532,26 @@ function New-WPFWindow {
                             </Grid.RowDefinitions>
                             
                             <!-- Computer Name Assignment -->
-                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid Grid.Row="0" Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <CheckBox Grid.Column="0" x:Name="ComputerNameCheckbox" Content="Assign Computer Name:" VerticalAlignment="Center" IsEnabled="False"/>
-                                <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 chars, letters/numbers/hyphens only, cannot start/end with hyphen or be all numbers)"/>
+                                <TextBox Grid.Column="1" x:Name="ComputerNameTextBox" Height="22" Margin="8,0,0,0" VerticalAlignment="Center" IsEnabled="False" MaxLength="15" ToolTip="Enter computer name (4-15 chars, letters/numbers/hyphens only, cannot start/end with hyphen or be all numbers)"/>
                             </Grid>
                             
                             <!-- Group Assignment -->
-                            <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid Grid.Row="1" Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <CheckBox Grid.Column="0" x:Name="AssignGroupCheckbox" Content="Assign to Group:" VerticalAlignment="Center" IsEnabled="False"/>
-                                <ComboBox Grid.Column="1" x:Name="GroupDropdown" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" IsEnabled="False" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Select an EntraID group (non-dynamic only)" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="True">
+                                <ComboBox Grid.Column="1" x:Name="GroupDropdown" Height="22" Margin="8,0,0,0" VerticalAlignment="Center" IsEnabled="False" IsEditable="True" IsTextSearchEnabled="True" ToolTip="Select an EntraID group (non-dynamic only)" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="True">
                                     <ComboBox.Resources>
                                         <Style TargetType="ComboBox">
-                                            <Setter Property="MaxDropDownHeight" Value="72"/>
+                                            <Setter Property="MaxDropDownHeight" Value="60"/>
                                             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
                                         </Style>
                                     </ComboBox.Resources>
@@ -559,7 +559,7 @@ function New-WPFWindow {
                             </Grid>
                             
                             <!-- Script Options -->
-                            <CheckBox Grid.Row="2" x:Name="WaitForRegistrationCheckbox" Content="Wait for registration (Profile Assignment)" VerticalAlignment="Center" Margin="0,0,0,5" IsEnabled="False"/>
+                            <CheckBox Grid.Row="2" x:Name="WaitForRegistrationCheckbox" Content="Wait for registration (Profile Assignment)" VerticalAlignment="Center" Margin="0,0,0,3" IsEnabled="False"/>
                             <CheckBox Grid.Row="3" x:Name="RebootCheckbox" Content="Reboot after registration" VerticalAlignment="Center" IsEnabled="False"/>
                         </Grid>
                     </Border>
@@ -568,7 +568,7 @@ function New-WPFWindow {
         </Grid>
         
         <!-- Footer -->
-        <Border Grid.Row="3" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="10">
+        <Border Grid.Row="3" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -579,10 +579,10 @@ function New-WPFWindow {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <Button Grid.Column="1" x:Name="RegisterDeviceButton" Content="Connect" Width="110" Height="32" Background="#0078D4" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="2" x:Name="CleanupButton" Content="Cleanup" Width="110" Height="32" Background="#FF8C00" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="3" x:Name="RefreshButton" Content="Refresh" Width="110" Height="32" Background="#107C10" Foreground="White" Margin="0,0,10,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="4" x:Name="ExitButton" Content="Exit" Width="110" Height="32" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="1" x:Name="RegisterDeviceButton" Content="Connect" Width="100" Height="28" Background="#0078D4" Foreground="White" Margin="0,0,8,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="2" x:Name="CleanupButton" Content="Cleanup" Width="100" Height="28" Background="#FF8C00" Foreground="White" Margin="0,0,8,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="3" x:Name="RefreshButton" Content="Refresh" Width="100" Height="28" Background="#107C10" Foreground="White" Margin="0,0,8,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="4" x:Name="ExitButton" Content="Exit" Width="100" Height="28" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
             </Grid>
         </Border>
     </Grid>
