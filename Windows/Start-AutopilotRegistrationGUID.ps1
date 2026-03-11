@@ -500,7 +500,14 @@ function New-WPFWindow {
                             </Grid>
                             
                             <TextBlock Grid.Row="1" Text="Assigned Groups:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                            <ListBox Grid.Row="2" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,10" MinHeight="40" MaxHeight="60"/>
+                            <ListBox Grid.Row="2" x:Name="GroupsList" Background="#FAFAFA" BorderBrush="#E0E0E0" Margin="0,0,0,10" Height="72" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Height" Value="22"/>
+                                        <Setter Property="Padding" Value="5,2"/>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
                             
                             <Grid Grid.Row="3">
                                 <Grid.ColumnDefinitions>
