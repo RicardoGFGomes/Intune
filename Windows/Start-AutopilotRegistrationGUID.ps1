@@ -341,8 +341,9 @@ function New-WPFWindow {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Autopilot Registration GUID Tool"
-        Height="570"
+        Height="590"
         Width="760"
+        ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         Background="#F5F5F5">
     <Window.Resources>
