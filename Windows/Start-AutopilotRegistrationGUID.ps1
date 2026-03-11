@@ -577,14 +577,11 @@ function New-WPFWindow {
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
                 <Button Grid.Column="1" x:Name="RegisterDeviceButton" Content="Connect" Width="100" Height="28" Background="#0078D4" Foreground="White" Margin="0,0,8,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="2" x:Name="CleanupButton" Content="Cleanup" Width="100" Height="28" Background="#FF8C00" Foreground="White" Margin="0,0,8,0" Cursor="Hand" IsEnabled="True" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="3" x:Name="RefreshButton" Content="Refresh" Width="100" Height="28" Background="#107C10" Foreground="White" Margin="0,0,8,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
-                <Button Grid.Column="4" x:Name="ExitButton" Content="Exit" Width="100" Height="28" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="2" x:Name="RefreshButton" Content="Refresh" Width="100" Height="28" Background="#107C10" Foreground="White" Margin="0,0,8,0" Cursor="Hand" IsEnabled="False" Style="{DynamicResource CustomButton}"/>
+                <Button Grid.Column="3" x:Name="ExitButton" Content="Exit" Width="100" Height="28" Background="#D32F2F" Foreground="White" Cursor="Hand" Style="{DynamicResource CustomButton}"/>
             </Grid>
         </Border>
     </Grid>
@@ -742,7 +739,6 @@ try {
     $AssignGroupCheckbox = $window.FindName("AssignGroupCheckbox")
     $GroupDropdown = $window.FindName("GroupDropdown")
     $RegisterDeviceButton = $window.FindName("RegisterDeviceButton")
-    $CleanupButton = $window.FindName("CleanupButton")
     $RefreshButton = $window.FindName("RefreshButton")
     $ExitButton = $window.FindName("ExitButton")
     $ProfileCountText = $window.FindName("ProfileCountText")
@@ -1474,203 +1470,6 @@ try {
     }
     })
     
-    # Cleanup button
-    $CleanupButton.Add_Click({
-        $result = [System.Windows.Forms.MessageBox]::Show("This will remove:`n- Microsoft.Graph.Authentication module`n- Microsoft.Graph.DeviceManagement module`n- Get-WindowsAutopilotinfo script`n- Any cached tokens`n`nContinue?", "Confirm Cleanup", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-        
-        if ($result -ne [System.Windows.Forms.DialogResult]::Yes) {
-            return
-        }
-        
-        $CleanupButton.IsEnabled = $false
-        $CleanupButton.Content = "Cleaning..."
-        
-        try {
-            Write-Host "Starting AGGRESSIVE cleanup process..." -ForegroundColor Yellow
-            
-            # Step 1: Disconnect from Graph API
-            try {
-                Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-                Write-Host "Disconnected from Microsoft Graph API" -ForegroundColor Green
-            }
-            catch { }
-            
-            # Step 2: Stop ALL PowerShell processes to release module locks
-            try {
-                Write-Host "Terminating ALL PowerShell processes (except current)..." -ForegroundColor Yellow
-                $currentPID = $PID
-                Get-Process -Name "powershell*" -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne $currentPID } | ForEach-Object {
-                    try {
-                        $_.Kill()
-                        Write-Host "Killed PowerShell process PID: $($_.Id)" -ForegroundColor Green
-                    }
-                    catch {
-                        Write-Host "Could not kill PowerShell process PID: $($_.Id)" -ForegroundColor Yellow
-                    }
-                }
-                Start-Sleep -Seconds 3
-            }
-            catch {
-                Write-Host "Warning: Error terminating PowerShell processes: $($_.Exception.Message)" -ForegroundColor Yellow
-            }
-            
-            # Step 3: Force remove ALL Graph modules from memory
-            Write-Host "FORCE removing ALL Graph-related modules from memory..." -ForegroundColor Yellow
-            try {
-                # Get ALL modules that might be Graph-related
-                $allModules = Get-Module | Where-Object { 
-                    $_.Name -like "*Graph*" -or 
-                    $_.Name -like "*Intune*" -or 
-                    $_.Name -like "*Autopilot*" -or
-                    $_.Name -eq "WindowsAutopilotIntune"
-                }
-                
-                foreach ($mod in $allModules) {
-                    try {
-                        Remove-Module -Name $mod.Name -Force -ErrorAction Stop
-                        Write-Host "FORCE removed module: $($mod.Name)" -ForegroundColor Green
-                    }
-                    catch {
-                        try {
-                            # Try even more aggressive removal
-                            [System.Reflection.Assembly]::LoadFrom($mod.Path) | Out-Null
-                            Remove-Module -Name $mod.Name -Force -ErrorAction Stop
-                            Write-Host "FORCE removed (2nd attempt): $($mod.Name)" -ForegroundColor Green
-                        }
-                        catch {
-                            Write-Host "Could not remove module: $($mod.Name) - $($_.Exception.Message)" -ForegroundColor Red
-                        }
-                    }
-                }
-                
-                # Force garbage collection multiple times
-                for ($i = 1; $i -le 3; $i++) {
-                    [System.GC]::Collect()
-                    [System.GC]::WaitForPendingFinalizers()
-                    [System.GC]::Collect()
-                    Start-Sleep -Seconds 1
-                    Write-Host "Garbage collection pass $i completed" -ForegroundColor Gray
-                }
-            }
-            catch {
-                Write-Host "Warning: Error during aggressive module removal: $($_.Exception.Message)" -ForegroundColor Yellow
-            }
-            
-            # Step 4: AGGRESSIVE module uninstallation
-            $modulesToRemove = @(
-                "Microsoft.Graph.Authentication",
-                "Microsoft.Graph.DeviceManagement", 
-                "Microsoft.Graph.Groups",
-                "Microsoft.Graph.Intune",
-                "Microsoft.Graph.Identity.DirectoryManagement",
-                "Microsoft.Graph.Users",
-                "Microsoft.Graph.Applications",
-                "Microsoft.Graph.Core",
-                "Microsoft.Graph.Profile",
-                "Microsoft.Graph.Beta.DeviceManagement",
-                "Microsoft.Graph.Beta.Identity.DirectoryManagement",
-                "Microsoft.Graph.Beta.Groups",
-                "Microsoft.Graph",
-                "WindowsAutopilotIntune"
-            )
-            
-            Write-Host "Starting AGGRESSIVE uninstallation of $($modulesToRemove.Count) modules..." -ForegroundColor Yellow
-            
-            foreach ($module in $modulesToRemove) {
-                try {
-                    $installedVersions = Get-Module -ListAvailable -Name $module -ErrorAction SilentlyContinue
-                    if ($installedVersions) {
-                        Write-Host "AGGRESSIVE uninstall of $module..." -ForegroundColor Yellow
-                        
-                        # Method 1: Nuclear uninstall - all versions at once
-                        try {
-                            Uninstall-Module -Name $module -AllVersions -Force -ErrorAction Stop
-                            Write-Host "SUCCESS: Uninstalled all versions of $module" -ForegroundColor Green
-                            continue
-                        }
-                        catch {
-                            Write-Host "Method 1 failed for $module, trying individual versions..." -ForegroundColor Yellow
-                        }
-                        
-                        # Method 2: Individual version removal with retries
-                        $successCount = 0
-                        foreach ($version in $installedVersions) {
-                            for ($retry = 1; $retry -le 3; $retry++) {
-                                try {
-                                    Uninstall-Module -Name $module -RequiredVersion $version.Version -Force -ErrorAction Stop
-                                    Write-Host "SUCCESS: Uninstalled $module v$($version.Version) (attempt $retry)" -ForegroundColor Green
-                                    $successCount++
-                                    break
-                                }
-                                catch {
-                                    Write-Host "Attempt $retry failed for $module v$($version.Version): $($_.Exception.Message)" -ForegroundColor Yellow
-                                    if ($retry -eq 3) {
-                                        Write-Host "FAILED: Could not uninstall $module v$($version.Version) after 3 attempts" -ForegroundColor Red
-                                    }
-                                    Start-Sleep -Seconds 1
-                                }
-                            }
-                        }
-                        
-                        if ($successCount -eq 0) {
-                            Write-Host "FAILED: Could not uninstall any version of $module" -ForegroundColor Red
-                        } else {
-                            Write-Host "PARTIAL SUCCESS: Uninstalled $successCount/$($installedVersions.Count) versions of $module" -ForegroundColor Yellow
-                        }
-                    }
-                    else {
-                        Write-Host "$module - not installed (OK)" -ForegroundColor Gray
-                    }
-                }
-                catch {
-                    Write-Host "CRITICAL ERROR checking $module : $($_.Exception.Message)" -ForegroundColor Red
-                }
-            }
-            
-            # Uninstall Get-WindowsAutopilotinfo script
-            try {
-                if (Get-InstalledScript -Name Get-WindowsAutopilotinfo -ErrorAction SilentlyContinue) {
-                    Write-Host "Uninstalling Get-WindowsAutopilotinfo script..." -ForegroundColor Yellow
-                    Uninstall-Script -Name Get-WindowsAutopilotinfo -Force -ErrorAction Stop
-                    Write-Host "Successfully uninstalled Get-WindowsAutopilotinfo script" -ForegroundColor Green
-                }
-            }
-            catch {
-                Write-Host "Warning: Could not uninstall Get-WindowsAutopilotinfo script : $_" -ForegroundColor Yellow
-            }
-            
-            # Remove cached tokens
-            try {
-                $tokenPath = "$env:LOCALAPPDATA\Microsoft\Powershell\Powershell*.json"
-                Get-Item -Path $tokenPath -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-                Write-Host "Cleared cached authentication tokens" -ForegroundColor Green
-            }
-            catch { }
-            
-            # Update status
-            $global:graphConnected = $false
-            $GraphStatusIndicator.Fill = "#D32F2F"
-            $GraphStatusText.Text = "Graph API: Not Connected"
-            # Update the register button text
-            $RegisterDeviceButton.Content = "Connect"
-            $RegisterDeviceButton.IsEnabled = $true
-            $RefreshButton.IsEnabled = $false
-            $ProfileDropdown.IsEnabled = $false
-            $ProfileDropdown.Items.Clear()
-            $ProfileCountText.Text = ""
-            $GroupTagText.Text = "No profile selected"
-            $GroupsList.Items.Clear()
-            
-            [System.Windows.Forms.MessageBox]::Show("Cleanup completed successfully!", "Cleanup Done", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-        }
-        catch {
-            [System.Windows.Forms.MessageBox]::Show("Error during cleanup: $_", "Cleanup Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        }
-        finally {
-            $CleanupButton.IsEnabled = $true
-            $CleanupButton.Content = "Cleanup"
-        }
-    })
     
     # Exit button
     $ExitButton.Add_Click({
