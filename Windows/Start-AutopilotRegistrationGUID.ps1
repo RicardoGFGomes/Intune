@@ -1069,10 +1069,16 @@ try {
                 try {
                     Write-Host "Close button clicked, attempting to stop processes..." -ForegroundColor Yellow
                     
+                    # Get reference to the window through the button's parent
+                    $window = $this.Parent
+                    while ($window -and $window.GetType().Name -ne "Window") {
+                        $window = $window.Parent
+                    }
+                    
                     # Stop any running PowerShell processes stored in window tag
-                    if ($progressWindow -and $progressWindow.Tag -and $progressWindow.Tag.PowerShell) {
+                    if ($window -and $window.Tag -and $window.Tag.PowerShell) {
                         try {
-                            $progressWindow.Tag.PowerShell.Stop()
+                            $window.Tag.PowerShell.Stop()
                             Write-Host "Stopped PowerShell process" -ForegroundColor Green
                         }
                         catch {
@@ -1081,21 +1087,25 @@ try {
                     }
                     
                     # Force close the window immediately
-                    if ($progressWindow -and -not $progressWindow.Dispatcher.HasShutdownStarted) {
-                        $progressWindow.Close()
+                    if ($window -and -not $window.Dispatcher.HasShutdownStarted) {
+                        $window.Close()
                         Write-Host "Progress window closed" -ForegroundColor Green
                     }
                 }
                 catch {
                     Write-Host "Error in close handler: $_" -ForegroundColor Red
-                    # Try to hide the window if close fails
+                    # Try to find and close any progress window
                     try {
-                        if ($progressWindow) {
-                            $progressWindow.Hide()
+                        $windows = [System.Windows.Application]::Current.Windows
+                        foreach ($w in $windows) {
+                            if ($w.Title -eq "Device Registration") {
+                                $w.Close()
+                                break
+                            }
                         }
                     }
                     catch {
-                        Write-Host "Could not hide progress window" -ForegroundColor Red
+                        Write-Host "Could not close progress window" -ForegroundColor Red
                     }
                 }
             })
